@@ -34,4 +34,22 @@ describe('embedTexts', () => {
       [0.3, 0.4],
     ]);
   });
+
+  it('splits requests into batches of 100 (Gemini\'s embeddings batch limit) and preserves order across batches', async () => {
+    const texts = Array.from({ length: 205 }, (_, i) => `chunk-${i}`);
+
+    createMock.mockImplementation(async ({ input }: { input: string[] }) => ({
+      data: input.map((text) => ({ embedding: [text.length] })),
+    }));
+
+    const result = await embedTexts(texts);
+
+    expect(createMock).toHaveBeenCalledTimes(3);
+    expect(createMock.mock.calls[0][0].input).toHaveLength(100);
+    expect(createMock.mock.calls[1][0].input).toHaveLength(100);
+    expect(createMock.mock.calls[2][0].input).toHaveLength(5);
+    expect(result).toHaveLength(205);
+    expect(result[0]).toEqual([texts[0].length]);
+    expect(result[204]).toEqual([texts[204].length]);
+  });
 });

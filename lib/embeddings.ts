@@ -12,10 +12,20 @@ function getClient(): OpenAI {
   return client;
 }
 
+const MAX_BATCH_SIZE = 100;
+
 export async function embedTexts(texts: string[]): Promise<number[][]> {
-  const response = await getClient().embeddings.create({
-    model: 'gemini-embedding-001',
-    input: texts,
-  });
-  return response.data.map((d) => d.embedding);
+  const client = getClient();
+  const results: number[][] = [];
+
+  for (let i = 0; i < texts.length; i += MAX_BATCH_SIZE) {
+    const batch = texts.slice(i, i + MAX_BATCH_SIZE);
+    const response = await client.embeddings.create({
+      model: 'gemini-embedding-001',
+      input: batch,
+    });
+    results.push(...response.data.map((d) => d.embedding));
+  }
+
+  return results;
 }

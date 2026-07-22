@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
         { status: 422 },
       );
     }
+    console.error('Upload processing failed:', err);
     return NextResponse.json({ error: 'Failed to process document' }, { status: 500 });
   }
 }
