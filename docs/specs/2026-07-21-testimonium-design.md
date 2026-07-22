@@ -1,8 +1,9 @@
-# FilingLens — Design Spec
+# Testimonium — Design Spec
 
+**Tagline:** Evidence-grade answers from SEC filings.
 **Status:** Approved for implementation planning
 **Date:** 2026-07-21
-**Author:** Naveen Madhav (solo build)
+**Author:** Naveen Sereddy (solo build)
 
 ## 1. Vision
 

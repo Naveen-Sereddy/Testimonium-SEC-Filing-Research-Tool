@@ -1,8 +1,7 @@
-# FilingLens Implementation Plan
+# Testimonium Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build and deploy FilingLens — a Next.js RAG app that answers questions about SEC 10-K narrative sections with page-level citations, styled per the approved design spec.
+**Goal:** Build and deploy Testimonium — a Next.js RAG app that answers questions about SEC 10-K narrative sections with page-level citations, styled per the approved design spec.
 
 **Architecture:** Next.js 14 App Router + TypeScript. Pure-function RAG core (`lib/`) unit-tested with Vitest, orchestrated by two thin API routes. React components consume design tokens exposed as Tailwind color/font names mapped to CSS variables. In-memory array vector store, no native modules, no external vector DB.
 
@@ -268,7 +267,7 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: 'FilingLens — Financial Document Intelligence',
+  title: 'Testimonium — Financial Document Intelligence',
   description: 'Ask questions about SEC 10-K filings and get page-cited answers.',
 };
 
@@ -289,7 +288,7 @@ Temporarily set `app/page.tsx` content to:
 export default function Page() {
   return (
     <main className="min-h-screen bg-base p-8">
-      <h1 className="font-ui text-[28px] font-semibold leading-[34px] text-primary">FilingLens</h1>
+      <h1 className="font-ui text-[28px] font-semibold leading-[34px] text-primary">Testimonium</h1>
       <p className="mt-4 font-serif text-[17px] leading-[28px] text-primary">
         Answer body renders in Source Serif 4.
       </p>
@@ -1429,7 +1428,7 @@ Create `hooks/useTheme.ts`:
 import { useCallback, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
-const STORAGE_KEY = 'filinglens-theme';
+const STORAGE_KEY = 'testimonium-theme';
 
 export function useTheme(): { theme: Theme; toggleTheme: () => void } {
   const [theme, setTheme] = useState<Theme>('dark');
@@ -2162,7 +2161,7 @@ export interface NavBarProps {
 export function NavBar({ onNewThread, onOpenSettings }: NavBarProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-base px-8 py-4">
-      <span className="font-ui text-[20px] font-bold text-primary">FilingLens</span>
+      <span className="font-ui text-[20px] font-bold text-primary">Testimonium</span>
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -2676,7 +2675,7 @@ git commit -m "Add Vercel deployment config"
 Create `README.md` with these sections, filled in with real content once the live URL exists (do not leave any bracketed placeholder unresolved before calling this done):
 
 ```markdown
-# FilingLens — Financial Document Intelligence
+# Testimonium — Financial Document Intelligence
 
 [Case study opening from spec §15 — the "artifact pack" paragraph — first-person, no invented collaborators]
 
