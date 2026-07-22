@@ -21,10 +21,16 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
   const { displayedText, isStreaming } = useStreamingText(answer);
   const [activeCitationId, setActiveCitationId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
-  const justClosedIdRef = useRef<number | null>(null);
+  const justClosedRef = useRef<{ id: number; time: number } | null>(null);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => setActiveCitationId(null), [answer]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   const segments = splitAnswerOnCitations(displayedText);
   const citationById = new Map(citations.map((c) => [c.id, c]));
@@ -64,8 +70,9 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
                 isActive={activeCitationId === seg.id}
                 isDimmed={activeCitationId !== null && activeCitationId !== seg.id}
                 onClick={() => {
-                  const wasJustClosed = justClosedIdRef.current === seg.id;
-                  justClosedIdRef.current = null;
+                  const jc = justClosedRef.current;
+                  const wasJustClosed = jc !== null && jc.id === seg.id && Date.now() - jc.time < 300;
+                  justClosedRef.current = null;
                   setActiveCitationId(wasJustClosed ? null : seg.id);
                 }}
               />
@@ -78,7 +85,7 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
         <SourceDrawer
           citation={activeCitation}
           onClose={() => {
-            justClosedIdRef.current = activeCitationId;
+            justClosedRef.current = { id: activeCitationId!, time: Date.now() };
             setActiveCitationId(null);
           }}
         />
