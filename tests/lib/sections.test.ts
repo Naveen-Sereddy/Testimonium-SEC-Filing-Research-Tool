@@ -22,6 +22,37 @@ describe('sectionsForPages', () => {
     expect(map.get(3)).toBe('MD&A');
     expect(map.get(4)).toBe('Legal Proceedings');
   });
+
+  it('skips table-of-contents pages when detecting section headings', () => {
+    const pages: RawPage[] = [
+      {
+        pageNumber: 1,
+        text: 'TABLE OF CONTENTS\nItem 1. Business .............. 5\nItem 1A. Risk Factors .......... 12\nItem 3. Legal Proceedings .... 60\nItem 7. Management\'s Discussion and Analysis .... 85',
+      },
+      { pageNumber: 2, text: 'Item 1. Business\nWe operate in...' },
+      { pageNumber: 3, text: 'Item 1A. Risk Factors\nWe face credit risk...' },
+    ];
+    const map = sectionsForPages(pages);
+    // ToC page (page 1) with multiple item headings should not update current,
+    // so it stays 'Unknown'
+    expect(map.get(1)).toBe('Unknown');
+    // Page 2 (Business) has only one item heading and should not match our patterns
+    expect(map.get(2)).toBe('Unknown');
+    // Page 3 should detect Risk Factors
+    expect(map.get(3)).toBe('Risk Factors');
+  });
+
+  it('detects headings with colon, dash, and em-dash separators', () => {
+    const pages: RawPage[] = [
+      { pageNumber: 1, text: 'Item 1A: Risk Factors\nCredit risk exposure...' },
+      { pageNumber: 2, text: 'Item 3 - Legal Proceedings\nWe face litigation...' },
+      { pageNumber: 3, text: "Item 7 — Management's Discussion and Analysis\nRevenue..." }, // em-dash
+    ];
+    const map = sectionsForPages(pages);
+    expect(map.get(1)).toBe('Risk Factors');
+    expect(map.get(2)).toBe('Legal Proceedings');
+    expect(map.get(3)).toBe('MD&A');
+  });
 });
 
 describe('tagAndFilterChunks', () => {
