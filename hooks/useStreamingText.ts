@@ -7,6 +7,15 @@ export function useStreamingText(fullText: string, charsPerTick = 1) {
   const [isStreaming, setIsStreaming] = useState(true);
 
   useEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      setDisplayedText(fullText);
+      setIsStreaming(false);
+      return;
+    }
+
     setDisplayedText('');
     setIsStreaming(true);
     let i = 0;
