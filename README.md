@@ -25,7 +25,7 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 
 ## Tech stack
 
-Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` for text extraction, OpenAI `text-embedding-3-small` for embeddings, an in-memory array for the vector store (deliberately not SQLite or an external vector DB — see Design Decisions), `gpt-4o` for answer generation with a citation-and-refusal instruction baked into the prompt. Vitest for the backend's pure-logic layer. Deployed on Vercel.
+Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` for text extraction, Google Gemini's OpenAI-compatible API (via the `openai` SDK) with `gemini-embedding-001` for embeddings, an in-memory array for the vector store (deliberately not SQLite or an external vector DB — see Design Decisions), `gemini-2.5-flash` for answer generation with a citation-and-refusal instruction baked into the prompt. Vitest for the backend's pure-logic layer. Deployed on Vercel.
 
 ## Design decisions
 
@@ -51,7 +51,7 @@ The throughline: reading class names and API docs isn't the same as verifying th
 
 ## Status
 
-Backend (RAG pipeline, both API routes) and every UI component are built and reviewed. Full-app wiring is code-complete. Live end-to-end verification (upload a real filing, ask a real question, confirm streamed citations) and the production deploy are the two remaining steps, both pending an OpenAI API key in this environment as of this writing — not a code gap, a configuration one.
+Backend (RAG pipeline, both API routes) and every UI component are built and reviewed. Full-app wiring is code-complete. Live end-to-end verification (upload a real filing, ask a real question, confirm streamed citations) and the production deploy are the two remaining steps, both pending a Gemini API key in this environment as of this writing — not a code gap, a configuration one.
 
 ## What I'd do with more time
 
@@ -64,7 +64,7 @@ Backend (RAG pipeline, both API routes) and every UI component are built and rev
 
 ```bash
 npm install
-echo "OPENAI_API_KEY=sk-..." > .env.local
+echo "GEMINI_API_KEY=..." > .env.local
 npm run dev
 ```
 

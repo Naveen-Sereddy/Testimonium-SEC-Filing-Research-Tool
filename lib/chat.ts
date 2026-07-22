@@ -4,7 +4,10 @@ let client: OpenAI | undefined;
 
 function getClient(): OpenAI {
   if (!client) {
-    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    client = new OpenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    });
   }
   return client;
 }
@@ -34,7 +37,7 @@ export function buildPrompt(question: string, context: ContextChunk[]): string {
 export async function askModel(question: string, context: ContextChunk[]): Promise<string> {
   const prompt = buildPrompt(question, context);
   const response = await getClient().chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gemini-2.5-flash',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.2,
   });
