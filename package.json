@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "geist": "^1.7.2",
     "next": "14.2.35",
     "openai": "^6.48.0",
     "pdf-parse": "^2.4.5",
