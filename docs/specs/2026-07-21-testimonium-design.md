@@ -140,9 +140,13 @@ WCAG AA badly on light surfaces — 1.55:1 as a border/UI element (needs
 amber that reads crisply on near-black naturally loses contrast against
 near-white. The same problem applies to the semantic colors, which were
 tuned for dark surfaces only. Light theme now uses darker, same-hue
-variants of accent and each semantic color, satisfying 4.5:1 text /
-3:1 UI-component contrast against both `bg-raised` (white) and
-`bg-overlay` (light gray). Dark theme is untouched. This was a deliberate
+variants of accent and each semantic color, tuned to the contrast level
+each token's actual usage requires: accent, success, error, and info
+meet 4.5:1 (used as text) against both `bg-raised` (white) and
+`bg-overlay` (light gray); warning meets 3:1 (used only as a non-text
+fill in the confidence meter, not as text) against both — if warning is
+ever used as text in a future component, it will need retuning to 4.5:1
+first. Dark theme is untouched. This was a deliberate
 sign-off, not a silent implementer deviation from the original "unchanged
 across themes" instruction — see [[testimonium-a11y-pass]] rationale in
 the build ledger.
