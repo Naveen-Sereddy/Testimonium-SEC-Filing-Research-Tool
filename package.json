@@ -1,0 +1,34 @@
+{
+  "name": "testimonium-build",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "geist": "^1.7.2",
+    "next": "14.2.35",
+    "openai": "^6.48.0",
+    "pdf-parse": "^2.4.5",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "pdf-lib": "^1.17.1",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}
