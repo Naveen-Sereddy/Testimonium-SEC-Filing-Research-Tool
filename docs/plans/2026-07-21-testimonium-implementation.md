@@ -1,5 +1,7 @@
 # Testimonium Implementation Plan
 
+> **Historical note:** this plan was written and executed against the OpenAI API (`OPENAI_API_KEY`, `text-embedding-3-small`, `gpt-4o`). The project was later migrated to Google Gemini's free-tier OpenAI-compatible endpoint (`GEMINI_API_KEY`, `gemini-embedding-001`, `gemini-2.5-flash`) — see `lib/embeddings.ts`/`lib/chat.ts`, `.env.example`, and the design spec's §14 provider note for the current setup. Any `OPENAI_API_KEY`/OpenAI-model references below are historical, not current instructions.
+
 
 **Goal:** Build and deploy Testimonium — a Next.js RAG app that answers questions about SEC 10-K narrative sections with page-level citations, styled per the approved design spec.
 
