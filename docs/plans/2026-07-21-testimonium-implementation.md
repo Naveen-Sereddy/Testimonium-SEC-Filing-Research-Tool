@@ -2700,7 +2700,6 @@ Next.js 14 (App Router), TypeScript, Tailwind CSS, OpenAI (text-embedding-3-smal
 [Same as above, repeated per original ask]
 ```
 
-
 - [ ] **Step 3: Commit**
 
 ```bash
