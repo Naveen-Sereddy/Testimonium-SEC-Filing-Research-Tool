@@ -16,7 +16,7 @@
 
   --text-primary: #ededed;
   --text-secondary: #8b8b94;
-  --text-tertiary: #5c5c66;
+  --text-tertiary: #86868f;
 
   --accent-base: #f5b942;
   --accent-hover: #f7c76e;
@@ -45,7 +45,15 @@
 
   --text-primary: #111118;
   --text-secondary: #5c5c66;
-  --text-tertiary: #909098;
+  --text-tertiary: #6a6a73;
+
+  --success: #177e3d;
+  --error: #dc0b0b;
+  --warning: #8e6703;
+  --info: #14769b;
+
+  --accent-base: #ba7f0a;
+  --accent-hover: #d5910b;
 }
 
 html {
@@ -60,6 +68,21 @@ html {
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);
+}
+
+/* Global focus indicator (spec §13): 2px solid accent, 2px offset, on every
+   interactive element. Components that already set their own focus-visible
+   outline (e.g. via Tailwind utility classes) take precedence via higher
+   selector specificity; this is the fallback for everything else. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-base);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
