@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface ChatInputProps {
   onSubmit: (question: string) => void;
@@ -20,17 +20,20 @@ export function ChatInput({ onSubmit, disabled, value, onChange }: ChatInputProp
     }
   };
 
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 6 * 22)}px`;
+  }, [value]);
+
   return (
     <div className="mx-auto flex w-full max-w-[760px] items-end gap-2 rounded-lg border border-border bg-overlay p-3 transition-shadow duration-[180ms] ease-standard focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-muted)]">
       <textarea
         ref={textareaRef}
         value={value}
         disabled={disabled}
-        onChange={(e) => {
-          onChange(e.target.value);
-          e.target.style.height = 'auto';
-          e.target.style.height = `${Math.min(e.target.scrollHeight, 6 * 22)}px`;
-        }}
+        onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
