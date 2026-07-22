@@ -53,6 +53,21 @@ describe('sectionsForPages', () => {
     expect(map.get(2)).toBe('Legal Proceedings');
     expect(map.get(3)).toBe('MD&A');
   });
+
+  it('does not misclassify pages with cross-references as table-of-contents', () => {
+    // This page has a real heading (Item 1A.) plus a prose cross-reference (Item 7)
+    // Bare "Item N" pattern would see 2 matches and wrongly flag it as ToC,
+    // but the improved pattern requires dot leaders + page number, so only cross-references won't match
+    const pages: RawPage[] = [
+      {
+        pageNumber: 1,
+        text: 'Item 1A. Risk Factors\nWe face significant credit risk. As discussed in Item 7 above, our revenue is concentrated in variable-rate consumer lending, which exposes us to interest rate volatility.',
+      },
+    ];
+    const map = sectionsForPages(pages);
+    // Page should be correctly tagged as Risk Factors, not skipped as ToC
+    expect(map.get(1)).toBe('Risk Factors');
+  });
 });
 
 describe('tagAndFilterChunks', () => {

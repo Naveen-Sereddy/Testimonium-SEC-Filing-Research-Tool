@@ -8,11 +8,12 @@ const SECTION_PATTERNS: Array<[RegExp, string]> = [
   [/item\s*7\s*[.:\-–—]?\s*management.?s discussion/i, 'MD&A'],
 ];
 
-const TOC_PATTERN = /item\s*\d+[a-z]?\b/gi;
-
 function isTableOfContents(pageText: string): boolean {
-  const matches = pageText.match(TOC_PATTERN);
-  return (matches?.length ?? 0) >= 2;
+  // ToC rows have "Item N. Heading .... pagenum" pattern (dot leaders or collapsed whitespace + digits)
+  // This distinguishes them from prose cross-references like "as discussed in Item 7 above"
+  const tocRowPattern = /item\s*\d{1,2}[a-z]?\.?\s*[^\n]{0,60}?[.\s]{2,}\d{1,4}\b/gi;
+  const matches = pageText.match(tocRowPattern) ?? [];
+  return matches.length >= 2;
 }
 
 export function sectionsForPages(pages: RawPage[]): Map<number, string> {
