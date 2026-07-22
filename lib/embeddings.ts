@@ -4,14 +4,17 @@ let client: OpenAI | undefined;
 
 function getClient(): OpenAI {
   if (!client) {
-    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    client = new OpenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    });
   }
   return client;
 }
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   const response = await getClient().embeddings.create({
-    model: 'text-embedding-3-small',
+    model: 'gemini-embedding-001',
     input: texts,
   });
   return response.data.map((d) => d.embedding);

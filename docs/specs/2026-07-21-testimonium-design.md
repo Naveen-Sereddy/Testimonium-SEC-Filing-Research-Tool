@@ -217,20 +217,27 @@ alternative. Error cards: `role="alert"`.
 - **RAG pipeline (Next.js API routes):**
   1. Upload → `pdf-parse` extracts text + page metadata
   2. Chunk ~1000 chars, 200-char overlap
-  3. Embed via OpenAI `text-embedding-3-small`
+  3. Embed via Google Gemini `gemini-embedding-001` (via Gemini's
+     OpenAI-compatible API, using the `openai` SDK)
   4. Store in an **in-memory array** (chunk text + page/section metadata +
      embedding vector) — no external vector DB, no native-module
      dependency. Re-embeds on cold start since the bundled demo PDF is
      the only persistent doc; this is a stated v1 scope decision, not a
      limitation discovered later.
   5. Query → embed → cosine similarity → top-5 chunks
-  6. Prompt model with chunks + page/section metadata; instructed to
-     answer only from context, cite `[N]`, say "I don't know" if
-     insufficient
+  6. Prompt `gemini-2.5-flash` with chunks + page/section metadata;
+     instructed to answer only from context, cite `[N]`, say "I don't
+     know" if insufficient
   7. Return answer + source chunks with page numbers
 - **Deployment:** Vercel. `vercel.json` included. One real public SEC
   10-K (from EDGAR, public domain) bundled as the demo document so the
   app works on first load with no setup.
+- **Provider note (post-spec revision):** this spec originally called for
+  OpenAI (`text-embedding-3-small` + `gpt-4o`); the implementation was
+  later swapped to Google Gemini's free tier via Gemini's
+  OpenAI-compatible endpoint to avoid a paid API, using the same `openai`
+  SDK unchanged — chunking, the in-memory store, retrieval, and the
+  citation format below are all unaffected by this swap.
 
 ## 15. Artifacts (portfolio deliverables)
 

@@ -15,7 +15,7 @@ describe('embedTexts', () => {
     createMock.mockReset();
   });
 
-  it('calls the embeddings API with text-embedding-3-small and returns the embedding vectors in order', async () => {
+  it('calls the embeddings API with gemini-embedding-001 and returns the embedding vectors in order', async () => {
     createMock.mockResolvedValue({
       data: [
         { embedding: [0.1, 0.2] },
@@ -26,7 +26,7 @@ describe('embedTexts', () => {
     const result = await embedTexts(['first chunk', 'second chunk']);
 
     expect(createMock).toHaveBeenCalledWith({
-      model: 'text-embedding-3-small',
+      model: 'gemini-embedding-001',
       input: ['first chunk', 'second chunk'],
     });
     expect(result).toEqual([
