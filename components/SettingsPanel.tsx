@@ -27,7 +27,7 @@ export function SettingsPanel({ isOpen, onClose, citationDepth, onCitationDepthC
         type="button"
         aria-label="Close settings"
         onClick={onClose}
-        className="absolute inset-0 bg-base/60"
+        className="absolute inset-0 bg-black/60"
       />
       <div className="absolute right-0 top-0 h-full w-[360px] animate-[slideIn_300ms_ease-out] border-l border-border bg-raised p-6">
         <div className="mb-6 flex items-center justify-between">
