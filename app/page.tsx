@@ -54,7 +54,7 @@ export default function Page() {
     });
   };
 
-  const runQuery = async (question: string) => {
+  const runQuery = async (question: string, replaceId?: string) => {
     setQueryError(null);
     const res = await fetch('/api/query', {
       method: 'POST',
@@ -69,25 +69,26 @@ export default function Page() {
     }
 
     const message: Message = {
-      id: crypto.randomUUID(),
+      id: replaceId ?? crypto.randomUUID(),
       question,
       timestamp: Date.now(),
       ...(body as QueryResult),
     };
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => (replaceId ? prev.map((m) => (m.id === replaceId ? message : m)) : [...prev, message]));
+  };
+
+  const resetToIdle = () => {
+    setDocState({ status: 'idle' });
+    setMessages([]);
+    setQueryError(null);
+    setInputValue('');
   };
 
   const sessions: SidebarSession[] = messages.map((m) => ({ id: m.id, question: m.question, timestamp: m.timestamp }));
 
   return (
     <div className="flex min-h-screen flex-col">
-      <NavBar
-        onNewThread={() => {
-          setDocState({ status: 'idle' });
-          setMessages([]);
-        }}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      <NavBar onNewThread={resetToIdle} onOpenSettings={() => setSettingsOpen(true)} />
 
       <div className="flex flex-1">
         <Sidebar
@@ -103,7 +104,7 @@ export default function Page() {
               fileName={docState.fileName}
               pageCount={docState.pageCount}
               chunkCount={docState.chunkCount}
-              onRemove={() => setDocState({ status: 'idle' })}
+              onRemove={resetToIdle}
             />
           )}
 
@@ -129,7 +130,7 @@ export default function Page() {
                 confidence={m.confidence}
                 timestamp={m.timestamp}
                 onCopy={() => {}}
-                onRegenerate={() => runQuery(m.question)}
+                onRegenerate={() => runQuery(m.question, m.id)}
               />
             ))}
           </div>
