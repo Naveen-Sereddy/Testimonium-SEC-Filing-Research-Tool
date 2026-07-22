@@ -73,6 +73,7 @@ describe('answerQuestion', () => {
     expect(result.citations).toEqual([]);
     expect(result.answer).toBe("I don't know based on the provided document.");
     expect(result.confidence).toBe('Low');
+    expect(embedTexts).not.toHaveBeenCalled();
     expect(askModel).not.toHaveBeenCalled();
   });
 
