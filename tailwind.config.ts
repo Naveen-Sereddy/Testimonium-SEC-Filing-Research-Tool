@@ -16,11 +16,9 @@ const config: Config = {
           subtle: 'var(--border-subtle)',
           strong: 'var(--border-strong)',
         },
-        text: {
-          primary: 'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          tertiary: 'var(--text-tertiary)',
-        },
+        primary: 'var(--text-primary)',
+        secondary: 'var(--text-secondary)',
+        tertiary: 'var(--text-tertiary)',
         accent: {
           DEFAULT: 'var(--accent-base)',
           hover: 'var(--accent-hover)',

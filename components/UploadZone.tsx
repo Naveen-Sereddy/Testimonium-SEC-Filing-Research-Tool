@@ -13,13 +13,14 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const borderClass = isDragOver ? 'border-accent bg-accent-muted' : 'border-border';
+  const showDragState = isDragOver || status === 'dragover';
+  const borderClass = showDragState ? 'border-accent bg-accent-muted' : 'border-border';
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label="Upload PDF by dropping a file here or using the file picker"
+      aria-label="Upload PDF by dropping file here or using the file picker"
       onClick={() => inputRef.current?.click()}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
