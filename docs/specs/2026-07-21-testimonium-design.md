@@ -120,15 +120,32 @@ Dark-first, CSS variables, swapped via `[data-theme]` on `<html>`.
 --bg-hover: #e4e4ea      --text-tertiary: #909098
 ```
 
-**Accent (both themes):** `#f5b942` base, `#f7c76e` hover, `rgba(245,185,66,0.12)` muted glow, `#1a1400` text-on-accent.
+**Accent — dark theme:** `#f5b942` base, `#f7c76e` hover, `rgba(245,185,66,0.12)` muted glow, `#1a1400` text-on-accent.
 
-**Semantic:** success `#4ade80`, error `#f87171`, warning `#fbbf24`, info `#67c7eb`.
+**Accent — light theme (revised, see rationale below):** darker same-hue amber, tuned so it clears 4.5:1 as text and 3:1 as a border/UI element against both `bg-raised` and `bg-overlay` in light mode — see `app/globals.css` for the exact hex value in force, computed and verified against the real WCAG relative-luminance formula rather than fixed here.
 
-**Citation highlight:** bg `rgba(245,185,66,0.08)`, border `rgba(245,185,66,0.35)`.
+**Semantic — dark theme:** success `#4ade80`, error `#f87171`, warning `#fbbf24`, info `#67c7eb`.
+
+**Semantic — light theme (revised):** darker same-hue variants of each, same 4.5:1/3:1 requirement — see `app/globals.css` for exact values.
+
+**Citation highlight:** bg `rgba(245,185,66,0.08)`, border `rgba(245,185,66,0.35)` (unchanged, both themes — used as a background wash, not foreground text/border, so the original amber's low contrast against light surfaces is not a WCAG concern here).
 
 Amber over indigo/purple: indigo is the default AI palette; amber reads
-precise and warm without the generic-chatbot association, and carries
-into light mode unchanged.
+precise and warm without the generic-chatbot association.
+
+**Revision (Task 20 accessibility pass):** the original spec called for
+`#f5b942` unchanged in light mode. Measured contrast showed this fails
+WCAG AA badly on light surfaces — 1.55:1 as a border/UI element (needs
+3:1) and 1.76:1 as text (needs 4.5:1) — because a bright, high-lightness
+amber that reads crisply on near-black naturally loses contrast against
+near-white. The same problem applies to the semantic colors, which were
+tuned for dark surfaces only. Light theme now uses darker, same-hue
+variants of accent and each semantic color, satisfying 4.5:1 text /
+3:1 UI-component contrast against both `bg-raised` (white) and
+`bg-overlay` (light gray). Dark theme is untouched. This was a deliberate
+sign-off, not a silent implementer deviation from the original "unchanged
+across themes" instruction — see [[testimonium-a11y-pass]] rationale in
+the build ledger.
 
 ## 9. Layout & Spacing
 
