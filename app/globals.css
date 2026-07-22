@@ -47,13 +47,14 @@
   --text-secondary: #5c5c66;
   --text-tertiary: #6a6a73;
 
-  --success: #177e3d;
-  --error: #dc0b0b;
-  --warning: #8e6703;
-  --info: #14769b;
+  --success: #177d3c;
+  --error: #da0b0b;
+  --warning: #a27603;
+  --info: #14759a;
 
-  --accent-base: #ba7f0a;
-  --accent-hover: #d5910b;
+  --accent-base: #8c6007;
+  --accent-hover: #9b6a08;
+  --accent-text-on-dark: #ffffff;
 }
 
 html {
