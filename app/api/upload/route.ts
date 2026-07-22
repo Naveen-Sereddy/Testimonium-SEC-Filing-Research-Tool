@@ -4,19 +4,18 @@ import { processUpload, NoNarrativeSectionsError } from '@/lib/rag';
 const MAX_BYTES = 20 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const file = formData.get('file');
-
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'File exceeds 20MB limit' }, { status: 400 });
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-
   try {
+    const formData = await req.formData();
+    const file = formData.get('file');
+
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: 'File exceeds 20MB limit' }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
     const result = await processUpload(buffer);
     return NextResponse.json(result);
   } catch (err) {

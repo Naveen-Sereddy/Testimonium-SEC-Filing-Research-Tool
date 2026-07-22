@@ -9,6 +9,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Question is required' }, { status: 400 });
   }
 
-  const result = await answerQuestion(question);
-  return NextResponse.json(result);
+  try {
+    const result = await answerQuestion(question);
+    return NextResponse.json(result);
+  } catch {
+    return NextResponse.json({ error: 'Failed to process question' }, { status: 500 });
+  }
 }
