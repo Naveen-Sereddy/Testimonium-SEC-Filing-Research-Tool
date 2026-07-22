@@ -34,8 +34,12 @@ describe('chunkPages', () => {
     expect(chunks.map((c) => c.id)).toEqual(['chunk-0', 'chunk-1', 'chunk-2']);
   });
 
-  it('skips whitespace-only trailing slices', () => {
-    const chunks = chunkPages([{ pageNumber: 1, text: 'a'.repeat(1000) + '   ' }], 1000, 200);
+  it('skips whitespace-only slices produced mid-document, not just at the end', () => {
+    const text = 'a'.repeat(10) + ' '.repeat(10);
+    const chunks = chunkPages([{ pageNumber: 1, text }], 5, 2);
+    // Without the trim guard this would produce 6 slices (two of them pure whitespace);
+    // with the guard, exactly 4 non-whitespace chunks survive.
+    expect(chunks.length).toBe(4);
     expect(chunks.every((c) => c.text.trim().length > 0)).toBe(true);
   });
 });
