@@ -19,6 +19,7 @@ const config: Config = {
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',
         tertiary: 'var(--text-tertiary)',
+        on: 'var(--accent-text-on-dark)',
         accent: {
           DEFAULT: 'var(--accent-base)',
           hover: 'var(--accent-hover)',
