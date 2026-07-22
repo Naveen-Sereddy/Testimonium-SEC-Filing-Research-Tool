@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Citation, Confidence } from '@/lib/rag';
 import { splitAnswerOnCitations } from '@/lib/parseCitations';
 import { useStreamingText } from '@/hooks/useStreamingText';
@@ -21,6 +21,10 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
   const { displayedText, isStreaming } = useStreamingText(answer);
   const [activeCitationId, setActiveCitationId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const justClosedIdRef = useRef<number | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => setActiveCitationId(null), [answer]);
 
   const segments = splitAnswerOnCitations(displayedText);
   const citationById = new Map(citations.map((c) => [c.id, c]));
@@ -30,7 +34,8 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
     navigator.clipboard.writeText(answer.replace(/\[\d+\]/g, '').trim());
     onCopy();
     setCopied(true);
-    setTimeout(() => setCopied(false), 800);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 800);
   };
 
   return (
@@ -58,14 +63,26 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
                 citation={citationById.get(seg.id)!}
                 isActive={activeCitationId === seg.id}
                 isDimmed={activeCitationId !== null && activeCitationId !== seg.id}
-                onClick={() => setActiveCitationId(activeCitationId === seg.id ? null : seg.id)}
+                onClick={() => {
+                  const wasJustClosed = justClosedIdRef.current === seg.id;
+                  justClosedIdRef.current = null;
+                  setActiveCitationId(wasJustClosed ? null : seg.id);
+                }}
               />
             </span>
           ) : null,
         )}
       </p>
 
-      {activeCitation && <SourceDrawer citation={activeCitation} onClose={() => setActiveCitationId(null)} />}
+      {activeCitation && (
+        <SourceDrawer
+          citation={activeCitation}
+          onClose={() => {
+            justClosedIdRef.current = activeCitationId;
+            setActiveCitationId(null);
+          }}
+        />
+      )}
 
       {!isStreaming && (
         <div className="mt-4 flex gap-4">
