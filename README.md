@@ -5,7 +5,7 @@
 A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
 
 **Live demo:** [pending deployment]
-**Repo:** [github.com/Naveen-Sereddy/Testimonium](https://github.com/Naveen-Sereddy/Testimonium)
+**Repo:** [github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool)
 
 ## The problem
 
