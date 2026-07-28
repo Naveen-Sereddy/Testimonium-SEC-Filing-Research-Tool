@@ -3,12 +3,13 @@ import { chunkPages } from './chunk';
 import { sectionsForPages, tagAndFilterChunks } from './sections';
 import { embedTexts } from './embeddings';
 import { askModel, type ContextChunk } from './chat';
-import { resetStore, addChunks, getAllChunks } from './store';
+import { addChunks, getAllChunks } from './store';
 import { cosineSimilarity } from './similarity';
 
 export class NoNarrativeSectionsError extends Error {}
 
 export interface UploadResult {
+  sessionId: string;
   chunkCount: number;
   pageCount: number;
 }
@@ -24,10 +25,10 @@ export async function processUpload(buffer: Buffer): Promise<UploadResult> {
   }
 
   const embeddings = await embedTexts(filtered.map((c) => c.text));
-  resetStore();
-  addChunks(filtered.map((c, i) => ({ ...c, embedding: embeddings[i] })));
+  const sessionId = crypto.randomUUID();
+  await addChunks(sessionId, filtered.map((c, i) => ({ ...c, embedding: embeddings[i] })));
 
-  return { chunkCount: filtered.length, pageCount: pages.length };
+  return { sessionId, chunkCount: filtered.length, pageCount: pages.length };
 }
 
 export interface Citation {
@@ -57,8 +58,8 @@ export function confidenceLabel(topScores: number[]): Confidence {
   return 'Low';
 }
 
-export async function answerQuestion(question: string, k = 5): Promise<QueryResult> {
-  const all = getAllChunks();
+export async function answerQuestion(sessionId: string, question: string, k = 5): Promise<QueryResult> {
+  const all = await getAllChunks(sessionId);
 
   if (all.length === 0) {
     return { answer: FALLBACK, citations: [], confidence: 'Low' };

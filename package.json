@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@upstash/redis": "^1.38.0",
     "dommatrix": "^1.0.3",
     "geist": "^1.7.2",
     "next": "14.2.35",

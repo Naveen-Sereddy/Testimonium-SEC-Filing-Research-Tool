@@ -18,7 +18,6 @@ import { processUpload, answerQuestion, confidenceLabel, NoNarrativeSectionsErro
 
 describe('processUpload', () => {
   beforeEach(() => {
-    resetStore();
     vi.mocked(extractPages).mockReset();
     vi.mocked(embedTexts).mockReset();
   });
@@ -33,6 +32,7 @@ describe('processUpload', () => {
 
     expect(result.pageCount).toBe(1);
     expect(result.chunkCount).toBe(1);
+    expect(result.sessionId).toEqual(expect.any(String));
     expect(embedTexts).toHaveBeenCalled();
   });
 
@@ -61,15 +61,17 @@ describe('confidenceLabel', () => {
 });
 
 describe('answerQuestion', () => {
-  beforeEach(() => {
-    resetStore();
+  const SESSION = 'test-session';
+
+  beforeEach(async () => {
+    await resetStore(SESSION);
     vi.mocked(embedTexts).mockReset();
     vi.mocked(askModel).mockReset();
   });
 
-  it('returns the fallback answer with no citations when the store is empty', async () => {
+  it('returns the fallback answer with no citations when the session has no stored chunks', async () => {
     vi.mocked(embedTexts).mockResolvedValue([[0.1, 0.2]]);
-    const result = await answerQuestion('What is our risk?');
+    const result = await answerQuestion(SESSION, 'What is our risk?');
     expect(result.citations).toEqual([]);
     expect(result.answer).toBe("I don't know based on the provided document.");
     expect(result.confidence).toBe('Low');
@@ -79,7 +81,7 @@ describe('answerQuestion', () => {
 
   it('retrieves top chunks, asks the model, and returns numbered citations with truncated excerpts', async () => {
     const { addChunks } = await import('../../lib/store');
-    addChunks([
+    await addChunks(SESSION, [
       {
         id: 'chunk-0',
         text: 'x'.repeat(300),
@@ -91,7 +93,7 @@ describe('answerQuestion', () => {
     vi.mocked(embedTexts).mockResolvedValue([[1, 0]]);
     vi.mocked(askModel).mockResolvedValue('Answer citing [1].');
 
-    const result = await answerQuestion('What is our risk?');
+    const result = await answerQuestion(SESSION, 'What is our risk?');
 
     expect(result.answer).toBe('Answer citing [1].');
     expect(result.citations).toEqual([

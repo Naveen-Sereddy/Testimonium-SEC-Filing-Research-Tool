@@ -25,7 +25,7 @@ describe('buildPrompt', () => {
 describe('askModel', () => {
   beforeEach(() => createMock.mockReset());
 
-  it('sends the built prompt to gemini-2.5-flash and returns the response content', async () => {
+  it('sends the built prompt to gemini-flash-latest and returns the response content', async () => {
     createMock.mockResolvedValue({
       choices: [{ message: { content: 'Answer with citation [1].' } }],
     });
@@ -33,7 +33,7 @@ describe('askModel', () => {
     const result = await askModel('question', [{ index: 1, text: 'ctx', page: 1, section: 'Risk Factors' }]);
     expect(result).toBe('Answer with citation [1].');
     expect(createMock).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'gemini-2.5-flash', temperature: 0.2 }),
+      expect.objectContaining({ model: 'gemini-flash-latest', temperature: 0.2 }),
     );
   });
 
