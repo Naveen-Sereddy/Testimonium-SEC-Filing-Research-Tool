@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 
-export function useStreamingText(fullText: string, charsPerTick = 1) {
+const DURATION_MS = 550;
+const SAFETY_MARGIN_MS = 400;
+
+export function useStreamingText(fullText: string) {
   const [displayedText, setDisplayedText] = useState('');
   const [isStreaming, setIsStreaming] = useState(true);
 
@@ -10,7 +13,7 @@ export function useStreamingText(fullText: string, charsPerTick = 1) {
     const prefersReducedMotion =
       typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion || fullText.length === 0) {
       setDisplayedText(fullText);
       setIsStreaming(false);
       return;
@@ -18,19 +21,43 @@ export function useStreamingText(fullText: string, charsPerTick = 1) {
 
     setDisplayedText('');
     setIsStreaming(true);
-    let i = 0;
 
-    const interval = setInterval(() => {
-      i += charsPerTick;
-      setDisplayedText(fullText.slice(0, i));
-      if (i >= fullText.length) {
-        clearInterval(interval);
-        setIsStreaming(false);
+    const start = performance.now();
+    let frameId: number;
+    let done = false;
+
+    // Reveal is driven by elapsed wall-clock time, not frame count, so a
+    // throttled or backgrounded tab (rAF can drop to ~1fps) still completes
+    // on schedule instead of appearing to freeze mid-stream.
+    const finish = () => {
+      if (done) return;
+      done = true;
+      setDisplayedText(fullText);
+      setIsStreaming(false);
+    };
+
+    const tick = (now: number) => {
+      if (done) return;
+      const progress = Math.min(1, (now - start) / DURATION_MS);
+      if (progress >= 1) {
+        finish();
+        return;
       }
-    }, 38);
+      setDisplayedText(fullText.slice(0, Math.floor(fullText.length * progress)));
+      frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
 
-    return () => clearInterval(interval);
-  }, [fullText, charsPerTick]);
+    // Hard fallback: rAF can be fully suspended in some backgrounded-tab
+    // cases, so guarantee completion via a timer that isn't rAF-throttled.
+    const safety = setTimeout(finish, DURATION_MS + SAFETY_MARGIN_MS);
+
+    return () => {
+      done = true;
+      cancelAnimationFrame(frameId);
+      clearTimeout(safety);
+    };
+  }, [fullText]);
 
   return { displayedText, isStreaming };
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTheme } from '@/hooks/useTheme';
+import { IconSun, IconMoon } from './icons';
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
@@ -10,9 +11,10 @@ export function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-      className="rounded-full border border-border bg-overlay px-3 py-1.5 font-ui text-[13px] text-secondary transition-colors duration-[180ms] ease-standard hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-overlay text-secondary transition-colors duration-[180ms] ease-standard hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
-      {theme === 'dark' ? 'Dark' : 'Light'}
+      {theme === 'dark' ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />}
     </button>
   );
 }

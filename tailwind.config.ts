@@ -27,7 +27,11 @@ const config: Config = {
           on: 'var(--accent-text-on-dark)',
         },
         success: 'var(--success)',
-        error: 'var(--error)',
+        error: {
+          DEFAULT: 'var(--error)',
+          muted: 'var(--error-muted)',
+          border: 'var(--error-border)',
+        },
         warning: 'var(--warning)',
         info: 'var(--info)',
         highlight: {

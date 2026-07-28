@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
   try {
     const result = await answerQuestion(question);
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    console.error('Query processing failed:', err);
     return NextResponse.json({ error: 'Failed to process question' }, { status: 500 });
   }
 }

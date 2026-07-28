@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Citation } from '@/lib/rag';
+import { IconFile } from './icons';
 
 export interface SourceDrawerProps {
   citation: Citation;
@@ -29,12 +30,14 @@ export function SourceDrawer({ citation, onClose }: SourceDrawerProps) {
   return (
     <div
       ref={drawerRef}
-      className="mt-3 animate-[slideUp_280ms_cubic-bezier(0,0,0.2,1)] rounded-md border-l-2 border-accent bg-overlay p-4"
+      className="mt-3 rounded-xl border border-border bg-overlay p-4"
+      style={{ animation: 'slideUp 220ms cubic-bezier(0,0,0.2,1)' }}
     >
-      <p className="font-ui text-[12px] text-secondary">
+      <div className="flex items-center gap-2 font-ui text-[12px] font-medium text-secondary">
+        <IconFile className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
         Page {citation.page} · {citation.section}
-      </p>
-      <p className="mt-2 font-serif text-[14px] leading-[22px] text-[#b0b0b8]">{citation.excerpt}</p>
+      </div>
+      <p className="mt-2 font-serif text-[14px] leading-[22px] text-secondary">{citation.excerpt}</p>
     </div>
   );
 }
