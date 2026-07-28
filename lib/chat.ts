@@ -37,7 +37,7 @@ export function buildPrompt(question: string, context: ContextChunk[]): string {
 export async function askModel(question: string, context: ContextChunk[]): Promise<string> {
   const prompt = buildPrompt(question, context);
   const response = await getClient().chat.completions.create({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-flash-latest',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.2,
   });
