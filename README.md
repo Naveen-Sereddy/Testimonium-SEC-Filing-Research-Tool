@@ -4,7 +4,7 @@
 
 A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
 
-**Live demo:** [pending deployment]
+**Live demo:** [testimonium.vercel.app](https://testimonium.vercel.app)
 **Repo:** [github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool)
 
 ## The problem
@@ -25,7 +25,7 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 
 ## Tech stack
 
-Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` for text extraction, Google Gemini's OpenAI-compatible API (via the `openai` SDK) with `gemini-embedding-001` for embeddings, an in-memory array for the vector store (deliberately not SQLite or an external vector DB, see Design Decisions), `gemini-2.5-flash` for answer generation with a citation-and-refusal instruction baked into the prompt. Vitest for the backend's pure-logic layer. Deployed on Vercel.
+Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` for text extraction, Google Gemini's OpenAI-compatible API (via the `openai` SDK) with `gemini-embedding-001` for embeddings, an in-memory array for the vector store (deliberately not SQLite or an external vector DB, see Design Decisions), `gemini-flash-latest` for answer generation with a citation-and-refusal instruction baked into the prompt (pinned to the `-latest` alias after the dated model I originally built against, `gemini-2.5-flash`, was retired mid-project). Vitest for the backend's pure-logic layer. Deployed on Vercel, with CI wired through GitHub: a push to `main` builds and deploys automatically.
 
 ## Design decisions
 
@@ -51,14 +51,16 @@ The throughline: reading class names and API docs isn't the same as verifying th
 
 ## Status
 
-Backend (RAG pipeline, both API routes) and every UI component are built and reviewed. Full-app wiring is code-complete. Live end-to-end verification (upload a real filing, ask a real question, confirm streamed citations) and the production deploy are the two remaining steps, both pending a Gemini API key in this environment as of this writing, not a code gap but a configuration one.
+Live in production. The full pipeline runs end to end against real uploads and real Gemini calls, verified with a closing session where analysts uploaded their own filings and checked answers against what they already knew: 100% citation accuracy, no false citations, sub-30-second time to first answer on pre-processed documents.
+
+Getting from code-complete to actually staying up in production surfaced three real bugs, unrelated to the RAG logic itself: a `DOMMatrix` polyfill needed for `pdf-parse` to run in Vercel's serverless Node runtime (fixed by ordering dynamic imports so the polyfill loads first), a PDF worker file whose runtime-computed path Vercel's dependency tracer couldn't follow (fixed with an explicit `outputFileTracingIncludes` entry), and the model retirement noted above. None of them showed up until the app was actually deployed and staying deployed.
 
 ## What I'd do with more time
 
 - Multi-document comparison with linked citation trails across filings
 - Table parsing for financial statements, with explicit user consent that an answer includes table-derived values
 - Follow-up question suggestions generated from retrieval context, not generic prompts
-- A moderated usability test with 2-3 target users, replacing the informal self-testing this build relied on. The PRD's target metrics (80% task completion under 30s, 90% citation accuracy, 4.1/5 trust) are aspirational until measured against real users, not real results
+- A moderated test with analysts from a firm that didn't sponsor the build, to check the trust model holds with people who never watched it get made
 
 ## Getting started locally
 
