@@ -24,8 +24,8 @@ type DocState =
   | { status: 'dragover' }
   | { status: 'uploading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; fileName: string; pageCount: number; chunkCount: number }
-  | { status: 'ready'; fileName: string; pageCount: number; chunkCount: number };
+  | { status: 'success'; fileName: string; pageCount: number; chunkCount: number; sessionId: string }
+  | { status: 'ready'; fileName: string; pageCount: number; chunkCount: number; sessionId: string };
 
 export default function Page() {
   const [docState, setDocState] = useState<DocState>({ status: 'idle' });
@@ -77,9 +77,9 @@ export default function Page() {
   // Let the "upload complete" moment land visually before swapping to the document view.
   useEffect(() => {
     if (docState.status !== 'success') return;
-    const { fileName, pageCount, chunkCount } = docState;
+    const { fileName, pageCount, chunkCount, sessionId } = docState;
     const timer = setTimeout(() => {
-      setDocState({ status: 'ready', fileName, pageCount, chunkCount });
+      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId });
     }, 700);
     return () => clearTimeout(timer);
   }, [docState]);
@@ -103,6 +103,7 @@ export default function Page() {
         fileName: file.name,
         pageCount: body.pageCount,
         chunkCount: body.chunkCount,
+        sessionId: body.sessionId,
       });
     } catch {
       setDocState({ status: 'error', message: 'Network error — please try again.' });
@@ -110,6 +111,9 @@ export default function Page() {
   };
 
   const runQuery = async (question: string, replaceId?: string) => {
+    if (docState.status !== 'ready') return;
+    const { sessionId } = docState;
+
     setQueryError(null);
     if (replaceId) setRegeneratingId(replaceId);
     else setPendingQuestion(question);
@@ -118,7 +122,7 @@ export default function Page() {
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, sessionId }),
       });
       const body = await res.json();
 
