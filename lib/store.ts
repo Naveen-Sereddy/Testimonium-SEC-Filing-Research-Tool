@@ -17,6 +17,11 @@ export interface StoredChunk extends Chunk {
 // Upstash's 10MB single-request limit, while a single chunk (~1000 chars of
 // text plus its embedding vector) never comes close.
 const SESSION_TTL_SECONDS = 60 * 60;
+// A pipelined write or an mget read across every chunk key still bundles
+// everything into one request/response, so either direction can hit the same
+// 10MB ceiling a single big blob would. Batching both keeps each round trip
+// comfortably under that regardless of document size.
+const KV_BATCH_SIZE = 30;
 const memoryStore = new Map<string, StoredChunk[]>();
 
 function hasKv(): boolean {
@@ -54,10 +59,14 @@ export async function addChunks(sessionId: string, chunks: StoredChunk[]): Promi
   if (hasKv()) {
     const kv = await kvClient();
     const start = Number((await kv.get<number>(countKey(sessionId))) ?? 0);
-    const pipeline = kv.pipeline();
-    chunks.forEach((chunk, i) => pipeline.set(chunkKey(sessionId, start + i), chunk, { ex: SESSION_TTL_SECONDS }));
-    pipeline.set(countKey(sessionId), start + chunks.length, { ex: SESSION_TTL_SECONDS });
-    await pipeline.exec();
+
+    for (let i = 0; i < chunks.length; i += KV_BATCH_SIZE) {
+      const batch = chunks.slice(i, i + KV_BATCH_SIZE);
+      const pipeline = kv.pipeline();
+      batch.forEach((chunk, j) => pipeline.set(chunkKey(sessionId, start + i + j), chunk, { ex: SESSION_TTL_SECONDS }));
+      await pipeline.exec();
+    }
+    await kv.set(countKey(sessionId), start + chunks.length, { ex: SESSION_TTL_SECONDS });
     return;
   }
   memoryStore.set(sessionId, [...(memoryStore.get(sessionId) ?? []), ...chunks]);
@@ -69,8 +78,13 @@ export async function getAllChunks(sessionId: string): Promise<StoredChunk[]> {
     const count = Number((await kv.get<number>(countKey(sessionId))) ?? 0);
     if (count === 0) return [];
     const keys = Array.from({ length: count }, (_, i) => chunkKey(sessionId, i));
-    const results = await kv.mget<StoredChunk[]>(...keys);
-    return results.filter((c): c is StoredChunk => c !== null);
+
+    const chunks: StoredChunk[] = [];
+    for (let i = 0; i < keys.length; i += KV_BATCH_SIZE) {
+      const batch = await kv.mget<StoredChunk[]>(...keys.slice(i, i + KV_BATCH_SIZE));
+      chunks.push(...batch.filter((c): c is StoredChunk => c !== null));
+    }
+    return chunks;
   }
   return memoryStore.get(sessionId) ?? [];
 }
