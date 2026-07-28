@@ -69,3 +69,7 @@ npm install
 echo "GEMINI_API_KEY=..." > .env.local
 npm run dev
 ```
+
+## License
+
+MIT
