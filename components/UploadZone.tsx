@@ -99,9 +99,9 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-hover">
             <IconUpload className="h-5 w-5 text-secondary" />
           </div>
-          <p className="font-ui text-[15px] leading-[22px] text-secondary">Drop a PDF here, or click to browse</p>
+          <p className="font-ui text-[15px] leading-[22px] text-secondary">Drop an SEC 10-K PDF here, or click to browse</p>
           <p id="upload-help" className="font-ui text-[12px] text-tertiary">
-            Supports PDF up to 20MB
+            MD&amp;A, Risk Factors &amp; Legal Proceedings sections · up to 4MB
           </p>
         </>
       )}

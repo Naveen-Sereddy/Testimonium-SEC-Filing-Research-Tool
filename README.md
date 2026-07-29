@@ -17,9 +17,10 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 
 - Upload a 10-K PDF (or use the bundled demo filing)
 - Ask a question in plain language
-- Get a streamed answer with inline numbered citations `[1]` `[2]`
+- Get an answer with a progressive text reveal (the complete response is fetched first, then revealed over ~550ms, not token-level streaming) and inline numbered citations `[1]` `[2]`
 - Click a citation to open a source drawer showing the exact excerpt, page number, and section
-- A confidence gauge on every answer signals how well-supported it is
+- A confidence gauge on every answer signals how well-supported it is; a model refusal always shows Low with no citations, regardless of retrieval score, so a non-answer never gets dressed up as a confident one
+- Citation depth (brief/standard/detailed) is user-adjustable in Settings and actually changes how many source chunks are retrieved per question (k = 3/5/8)
 - Retrieval is scoped to narrative sections only (MD&A, Risk Factors, Legal Proceedings), not financial tables. That's a stated v1 scope decision, not a gap: the hypothesis under test is retrieval speed on prose, not structured-data parsing.
 - Dark and light themes, full keyboard navigation, WCAG 2.1 AA contrast
 
