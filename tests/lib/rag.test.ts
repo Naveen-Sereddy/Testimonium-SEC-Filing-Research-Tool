@@ -7,9 +7,10 @@ vi.mock('../../lib/pdf', () => ({
 vi.mock('../../lib/embeddings', () => ({
   embedTexts: vi.fn(),
 }));
-vi.mock('../../lib/chat', () => ({
-  askModel: vi.fn(),
-}));
+vi.mock('../../lib/chat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/chat')>();
+  return { ...actual, askModel: vi.fn() };
+});
 
 import { extractPages } from '../../lib/pdf';
 import { embedTexts } from '../../lib/embeddings';
@@ -100,5 +101,22 @@ describe('answerQuestion', () => {
       { id: 1, page: 12, section: 'Risk Factors', excerpt: 'x'.repeat(200) },
     ]);
     expect(result.confidence).toBe('Medium');
+  });
+
+  it('forces Low confidence and no citations when the model refuses, even with strong retrieval scores', async () => {
+    const { addChunks } = await import('../../lib/store');
+    await addChunks(SESSION, [
+      { id: 'chunk-0', text: 'x'.repeat(300), page: 12, section: 'Risk Factors', embedding: [1, 0] },
+      { id: 'chunk-1', text: 'y'.repeat(300), page: 13, section: 'Risk Factors', embedding: [1, 0] },
+      { id: 'chunk-2', text: 'z'.repeat(300), page: 14, section: 'Risk Factors', embedding: [1, 0] },
+    ]);
+    vi.mocked(embedTexts).mockResolvedValue([[1, 0]]);
+    vi.mocked(askModel).mockResolvedValue("I don't know based on the provided document.");
+
+    const result = await answerQuestion(SESSION, 'Summarize key findings');
+
+    expect(result.answer).toBe("I don't know based on the provided document.");
+    expect(result.citations).toEqual([]);
+    expect(result.confidence).toBe('Low');
   });
 });
