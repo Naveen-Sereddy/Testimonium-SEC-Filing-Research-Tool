@@ -103,6 +103,28 @@ describe('answerQuestion', () => {
     expect(result.confidence).toBe('Medium');
   });
 
+  it('respects a custom k, retrieving fewer or more chunks than the default', async () => {
+    const { addChunks } = await import('../../lib/store');
+    await addChunks(
+      SESSION,
+      Array.from({ length: 6 }, (_, i) => ({
+        id: `chunk-${i}`,
+        text: `text ${i}`,
+        page: i + 1,
+        section: 'Risk Factors',
+        embedding: [1, 0],
+      })),
+    );
+    vi.mocked(embedTexts).mockResolvedValue([[1, 0]]);
+    vi.mocked(askModel).mockResolvedValue('Answer.');
+
+    const brief = await answerQuestion(SESSION, 'What is our risk?', 3);
+    expect(brief.citations).toHaveLength(3);
+
+    const detailed = await answerQuestion(SESSION, 'What is our risk?', 6);
+    expect(detailed.citations).toHaveLength(6);
+  });
+
   it('forces Low confidence and no citations when the model refuses, even with strong retrieval scores', async () => {
     const { addChunks } = await import('../../lib/store');
     await addChunks(SESSION, [

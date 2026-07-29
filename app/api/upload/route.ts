@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processUpload, NoNarrativeSectionsError } from '@/lib/rag';
+import { checkUploadRateLimit } from '@/lib/ratelimit';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+// Vercel Functions hard-cap request bodies at 4.5MB (platform limit, not
+// configurable). Staying under that with margin, rather than advertising a
+// limit the platform would reject before this code ever runs.
+const MAX_BYTES = 4 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
+  const { limited } = await checkUploadRateLimit(req);
+  if (limited) {
+    return NextResponse.json({ error: 'Too many uploads, please wait a minute and try again' }, { status: 429 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get('file');
@@ -12,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
     if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: 'File exceeds 20MB limit' }, { status: 400 });
+      return NextResponse.json({ error: 'File exceeds 4MB limit' }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

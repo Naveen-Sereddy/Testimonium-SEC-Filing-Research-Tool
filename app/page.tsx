@@ -35,6 +35,7 @@ export default function Page() {
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [citationDepth, setCitationDepth] = useState<'brief' | 'standard' | 'detailed'>('standard');
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +123,7 @@ export default function Page() {
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, sessionId }),
+        body: JSON.stringify({ question, sessionId, citationDepth }),
       });
       const body = await res.json();
 
@@ -147,11 +148,20 @@ export default function Page() {
   };
 
   const resetToIdle = () => {
+    if (docState.status === 'ready' || docState.status === 'success') {
+      const { sessionId } = docState;
+      fetch('/api/session', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => {});
+    }
     setDocState({ status: 'idle' });
     setMessages([]);
     setQueryError(null);
     setPendingQuestion(null);
     setRegeneratingId(null);
+    setSelectedMessageId(null);
     setInputValue('');
   };
 
@@ -163,7 +173,18 @@ export default function Page() {
       <NavBar onNewThread={resetToIdle} onOpenSettings={() => setSettingsOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar sessions={sessions} activeId={messages.at(-1)?.id ?? null} onSelect={() => {}} onClear={() => setMessages([])} />
+        <Sidebar
+          sessions={sessions}
+          activeId={selectedMessageId ?? messages.at(-1)?.id ?? null}
+          onSelect={(id) => {
+            setSelectedMessageId(id);
+            document.getElementById(`message-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          onClear={() => {
+            setMessages([]);
+            setSelectedMessageId(null);
+          }}
+        />
 
         <main className="flex flex-1 flex-col overflow-hidden">
           {docState.status === 'ready' && (
@@ -203,7 +224,12 @@ export default function Page() {
               )}
 
               {messages.map((m) => (
-                <div key={m.id} className="flex flex-col gap-3" style={{ animation: 'fadeInUp 260ms cubic-bezier(0.16,1,0.3,1)' }}>
+                <div
+                  key={m.id}
+                  id={`message-${m.id}`}
+                  className="flex flex-col gap-3 scroll-mt-4"
+                  style={{ animation: 'fadeInUp 260ms cubic-bezier(0.16,1,0.3,1)' }}
+                >
                   <UserMessageBubble question={m.question} />
                   {m.id === regeneratingId ? (
                     <PendingResponseCard />
