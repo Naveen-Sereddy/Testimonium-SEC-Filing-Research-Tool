@@ -2,7 +2,7 @@ import { extractPages } from './pdf';
 import { chunkPages } from './chunk';
 import { sectionsForPages, tagAndFilterChunks } from './sections';
 import { embedTexts } from './embeddings';
-import { askModel, type ContextChunk } from './chat';
+import { askModel, FALLBACK, type ContextChunk } from './chat';
 import { addChunks, getAllChunks } from './store';
 import { cosineSimilarity } from './similarity';
 
@@ -46,7 +46,6 @@ export interface QueryResult {
   confidence: Confidence;
 }
 
-const FALLBACK = "I don't know based on the provided document.";
 const HIGH_THRESHOLD = 0.85;
 const MEDIUM_THRESHOLD = 0.6;
 const HIGH_MIN_COUNT = 3;
@@ -79,6 +78,15 @@ export async function answerQuestion(sessionId: string, question: string, k = 5)
   }));
 
   const answer = await askModel(question, context);
+
+  // Confidence describes trust in an answer, not in retrieval geometry. A
+  // question can retrieve well-matched chunks and still get refused by the
+  // model (weak connection between the chunks and what was actually asked),
+  // so a refusal is always Low confidence with no citations, regardless of
+  // how strong the underlying retrieval scores were.
+  if (answer.trim() === FALLBACK) {
+    return { answer, citations: [], confidence: 'Low' };
+  }
 
   const citations: Citation[] = context.map((c) => ({
     id: c.index,

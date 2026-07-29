@@ -19,7 +19,7 @@ export interface ContextChunk {
   section: string;
 }
 
-const FALLBACK = "I don't know based on the provided document.";
+export const FALLBACK = "I don't know based on the provided document.";
 
 export function buildPrompt(question: string, context: ContextChunk[]): string {
   const contextBlock = context.map((c) => `[${c.index}] (Page ${c.page}, ${c.section})\n${c.text}`).join('\n\n');
