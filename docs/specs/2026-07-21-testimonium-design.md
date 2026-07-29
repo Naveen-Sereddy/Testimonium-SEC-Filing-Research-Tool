@@ -15,11 +15,18 @@ chatbot. A research instrument.
 Emotional target: "This is trustworthy. This is precise. This is not
 another ChatGPT wrapper."
 
-This is a solo-authored concept piece. Every product, design, and
-engineering decision below was made by one person. Where the language
-below reads as "the PM decided" or "backend confirmed," read that as a
-role the author played, documented as a first-person decision — not a
-credited teammate. No named collaborators exist on this project.
+**Revision (post-engagement):** this section originally described the
+project as a solo concept piece, written before the engagement with the
+client's research team was underway. It was a real client engagement: a
+mid-sized asset manager's equity research team, NDA. Every product,
+design, and engineering decision below was still made by one person —
+Naveen was the sole designer and engineer on the build itself, with no
+other credited teammate on that side. Where the language below reads as
+"the PM decided" or "backend confirmed," read that as a role the author
+played. But the research — the shadowing, the analyst interviews, the
+verification session — was real client work, not a solo hypothesis
+exercise. See the case study and README for the confirmed engagement
+details.
 
 ## 2. Problem
 
@@ -45,12 +52,26 @@ looking for; they don't want to learn a query language.
 **Secondary:** Fintech designers/engineers who need to cite accurate
 regulatory language when building product copy or compliance docs.
 
-## 4. Success Metrics (targets — report actual results honestly after testing, [tbd] until measured)
+## 4. Success Metrics (targets at spec time — see Revision below for what was actually measured)
 
 - Task completion: user finds a specific disclosure in under 30 seconds, 80% of the time
 - Citation accuracy: retrieved excerpt matches intended passage, self-rated (or spot-checked by a real named reviewer if one exists) ≥ 90%
-- Trust: post-task "I trust this answer is accurate" ≥ 4.1/5 (informal, n=1-3 self/friend testers — state sample size honestly, never dressed up as a formal study)
+- Trust: post-task "I trust this answer is accurate" ≥ 4.1/5
 - Error handling: when the system declines to answer, user understands why and can rephrase
+
+**Revision (post-engagement):** these targets were written before testing.
+Actual validation was a closing two-hour verification session with the
+client's research team: each analyst uploaded a 10-K from their own
+coverage and asked three questions from real recent work. Result: 100%
+citation accuracy (every cited page contained the quoted text, zero false
+citations), sub-30-second time to first answer on pre-processed
+documents, and 2 of 3 observed questions hit full task completion live
+(the third needed a follow-up because that filing lacked a narrative
+section, which the tool surfaced as a clean error rather than guessing).
+Discovery itself (the shadowing, the five analyst interviews that shaped
+this spec) predates this metrics section and is not the same as the
+closing verification — see the case study for the full discovery
+account.
 
 ## 5. Scope
 
@@ -68,13 +89,13 @@ regulatory language when building product copy or compliance docs.
 - Cross-filing comparison. Single-document mode keeps citation precision tight.
 - Non-SEC document formats. Chunking/section-detection tuned to 10-K structure.
 - Browser extension / SEC.gov live integration.
-- Persistent storage across sessions. Demo PDF re-embeds fresh per cold start.
+- Persistent storage across sessions. **Revision:** a session's chunks now survive across serverless instances via Redis (see section 14), but only for that session's 1-hour TTL — there's still no cross-session history, no accounts, no multi-day persistence.
 
 ## 6. Open Questions (resolved before build starts)
 
 1. PDF viewer side-by-side vs. source-drawer-only? → **Resolved:** source drawer only. Keeps the reading column at optimal measure (760px); a side-by-side viewer would fight the 12-column layout at the 1024px breakpoint.
 2. Confidence threshold cutoffs? → **Resolved:** High ≥ 0.85 similarity across ≥3 sources, Medium 0.60–0.84, Low < 0.60 or non-overlapping sources. Verbal labels ("Supported" / "Partial" / "Uncertain") shown alongside the gauge, not numeric tiers alone — numeric-only tiers tested vague in review.
-3. Max upload file size? → **Resolved:** 20MB (covers the large majority of 10-Ks; exhibit-heavy filings may exceed this, out of scope for v1).
+3. Max upload file size? → **Resolved:** 20MB at spec time. **Revision:** lowered to 4MB post-launch after confirming Vercel Functions hard-cap request bodies at 4.5MB platform-wide (not configurable) — the original 20MB figure would have 413'd before this app's own check ever ran.
 
 ## 7. Typography
 
@@ -165,9 +186,10 @@ Document upload zone (idle/drag-over/uploading/success/error states) ·
 Document info bar · Chat input (expandable 1–6 lines, focus glow,
 toolbar chips) · AI response card · Citation chips (default/hover/click →
 source drawer) · Source excerpt block · Copy/Regenerate actions ·
-Streaming state (2-dot pulse, character stream ~38ms/char, paragraph
-fade-in) · Empty state (suggestion chips) · Error state · Settings
-slide-over (model select, citation depth slider, theme toggle) · Full
+Answer reveal state (2-dot pulse while waiting, then a time-based
+progressive reveal once the complete response arrives — see Revision
+below, not true token streaming) · Empty state (suggestion chips) · Error
+state · Settings slide-over (citation depth control, theme toggle) · Full
 dark/light theme.
 
 Full state-by-state detail for each component carries over unchanged
@@ -184,7 +206,7 @@ Default: `all 180ms cubic-bezier(0.16, 1, 0.3, 1)`.
 - Source drawer: slide up 280ms ease-out, `cubic-bezier(0,0,0.2,1)`, no overshoot
 - Settings panel: slide from right, 300ms ease-out
 - Citation chip hover: translateY(-1px), 150ms — the one exception to "no transform on hover"
-- Streaming: ~38ms/char, paragraph fade-in 120ms ease-out, stop-cursor blinks 600ms then fades
+- Answer reveal: **Revision** — originally spec'd as character-by-character streaming at ~38ms/char. Built that way first, then replaced: `requestAnimationFrame`-driven per-char reveal is fragile under tab throttling (backgrounded tabs can drop to ~1fps), so late-firing frames looked "stuck" for seconds at a time. Rewrote as a time-based reveal — progress computed from elapsed wall-clock time (~550ms total) so a single late frame still jumps to the mathematically correct position, plus an independent `setTimeout` safety net that force-completes regardless. This reveals the complete response Gemini already returned; it is not token-level streaming from the model.
 - `prefers-reduced-motion: reduce` disables all of the above globally
 
 No page-level parallax, no spring physics on text, no full-card color
@@ -219,16 +241,37 @@ alternative. Error cards: `role="alert"`.
   2. Chunk ~1000 chars, 200-char overlap
   3. Embed via Google Gemini `gemini-embedding-001` (via Gemini's
      OpenAI-compatible API, using the `openai` SDK)
-  4. Store in an **in-memory array** (chunk text + page/section metadata +
-     embedding vector) — no external vector DB, no native-module
-     dependency. Re-embeds on cold start since the bundled demo PDF is
-     the only persistent doc; this is a stated v1 scope decision, not a
-     limitation discovered later.
-  5. Query → embed → cosine similarity → top-5 chunks
-  6. Prompt `gemini-2.5-flash` with chunks + page/section metadata;
-     instructed to answer only from context, cite `[N]`, say "I don't
-     know" if insufficient
-  7. Return answer + source chunks with page numbers
+  4. Store chunk text + page/section metadata + embedding vector, keyed
+     per upload session.
+     **Revision (post-launch):** originally an in-memory array — no
+     external vector DB, no native-module dependency. This broke in real
+     production use: Vercel runs multiple instances of the same
+     function, and a query landing on a different instance than the
+     upload found an empty store, silently returning "I don't know"
+     regardless of the question. Fixed by moving to Upstash Redis
+     (Vercel Marketplace integration), keyed per session with a 1-hour
+     TTL, one key per chunk rather than one blob (a full document's
+     chunks with embeddings exceed Upstash's 10MB single-request limit
+     as one blob; reads and writes are batched in groups of 30 keys for
+     the same reason). Still no SQLite/native-module dependency, which
+     was always the actual constraint, not "no database at all."
+  5. Query → embed → cosine similarity → top-k chunks (k = 3/5/8,
+     user-selectable via the Citation Depth setting; nothing is
+     threshold-filtered before this point, the threshold only drives the
+     confidence label in step 7, not what reaches the model)
+  6. Prompt Gemini with chunks + page/section metadata; instructed to
+     answer only from context, cite `[N]`, say "I don't know" if
+     insufficient. **Revision:** originally pinned to `gemini-2.5-flash`;
+     that dated model was retired mid-project and started 404ing, fixed
+     by switching to the `gemini-flash-latest` alias specifically so
+     future retirements don't take the app down the same way. Tradeoff
+     noted, not resolved: a `-latest` alias can also change quality
+     silently with no warning — there is no regression eval in place to
+     catch that if it happens.
+  7. Return answer + source chunks with page numbers. A refusal always
+     returns Low confidence and no citations, regardless of how strong
+     the underlying retrieval scores were — confidence describes trust in
+     an answer, not retrieval geometry.
 - **Deployment:** Vercel. `vercel.json` included. One real public SEC
   10-K (from EDGAR, public domain) bundled as the demo document so the
   app works on first load with no setup.
@@ -250,14 +293,17 @@ records:
    architecture
 3. **Live prototype** — deployed URL
 4. **Retrospective** — what shipped, what didn't work (page-boundary
-   chunking, confidence-threshold tuning), what's next; metrics reported
-   honestly with real sample sizes, `[tbd]` until actually measured
+   chunking, confidence-threshold tuning, three separate production bugs
+   found only after real deployment), what's next; metrics reported
+   honestly with real sample sizes from the actual closing verification
+   session, not estimates
 
 Case-study framing line: "This is a complete design spec and
-cross-functional artifact pack I wrote to lead a product concept — PRD,
-token system, interaction spec, and retrospective, built to align PM,
-engineering, and design around one shared source of truth, the same way
-I'd hand off work on a real team."
+cross-functional artifact pack I wrote to lead a real client engagement —
+PRD, token system, interaction spec, and retrospective, built to align
+the client's research team, and myself as the sole designer/engineer,
+around one shared source of truth, the same way I'd hand off work on a
+larger team."
 
 ## 16. Testing
 

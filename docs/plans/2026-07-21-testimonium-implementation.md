@@ -1,6 +1,8 @@
 # Testimonium Implementation Plan
 
 > **Historical note:** this plan was written and executed against the OpenAI API (`OPENAI_API_KEY`, `text-embedding-3-small`, `gpt-4o`). The project was later migrated to Google Gemini's free-tier OpenAI-compatible endpoint (`GEMINI_API_KEY`, `gemini-embedding-001`, `gemini-2.5-flash`) — see `lib/embeddings.ts`/`lib/chat.ts`, `.env.example`, and the design spec's §14 provider note for the current setup. Any `OPENAI_API_KEY`/OpenAI-model references below are historical, not current instructions.
+>
+> **Further historical note (post-launch):** references below to an "in-memory vector store" describe the original design — it broke across serverless instances in real production use and was replaced with a Redis-backed session store; to `gemini-2.5-flash` — that model was later retired and the app now runs on the `gemini-flash-latest` alias; and to a 20MB upload limit — lowered to 4MB after confirming Vercel Functions hard-cap request bodies at 4.5MB platform-wide. See the design spec's §14 and §6 revisions for the current, accurate state. This plan otherwise remains an accurate historical record of how the app was actually built.
 
 
 **Goal:** Build and deploy Testimonium — a Next.js RAG app that answers questions about SEC 10-K narrative sections with page-level citations, styled per the approved design spec.
