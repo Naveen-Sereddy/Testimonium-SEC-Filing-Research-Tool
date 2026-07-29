@@ -50,6 +50,17 @@ This build surfaced more real bugs from careful review than from the initial imp
 
 The throughline: reading class names and API docs isn't the same as verifying they work. Building the actual CSS, tracing real event order, and reading a library's real installed source caught bugs that code review alone would have missed.
 
+## Eval
+
+`npm run eval` runs a small golden set against the real deployed API: four in-scope questions that should get answered with citations, two out-of-scope questions that should get a clean refusal, plus a check that Citation Depth actually changes retrieval count (3/5/8). It hits production directly, no mocks. Last run:
+
+```
+6/6 passed
+Citation Depth check: brief=3, standard=5, detailed=8 citations — PASS
+```
+
+What this does and doesn't prove, stated plainly: it validates retrieval-and-refusal *behavior* (does an in-scope question get answered, does an out-of-scope one get refused, do citation pages fall in range) against one bundled document. It does not grade whether the generated prose is a *good* summary, that needs a human or LLM judge, not implemented here. And the confidence thresholds themselves (0.85 / 0.6 in `lib/rag.ts`) are still hand-picked, not statistically calibrated against this or any larger eval set. This is real evidence for the behaviors it checks, not a claim that the whole system is formally evaluated.
+
 ## Status
 
 Live in production. The full pipeline runs end to end against real uploads and real Gemini calls, verified with a closing session where analysts uploaded their own filings and checked answers against what they already knew: 100% citation accuracy, no false citations, sub-30-second time to first answer on pre-processed documents.
