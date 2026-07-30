@@ -24,8 +24,8 @@ type DocState =
   | { status: 'dragover' }
   | { status: 'uploading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; fileName: string; pageCount: number; chunkCount: number; sessionId: string }
-  | { status: 'ready'; fileName: string; pageCount: number; chunkCount: number; sessionId: string };
+  | { status: 'success'; fileName: string; pageCount: number; chunkCount: number; sessionId: string; indexedSections: string[] }
+  | { status: 'ready'; fileName: string; pageCount: number; chunkCount: number; sessionId: string; indexedSections: string[] };
 
 export default function Page() {
   const [docState, setDocState] = useState<DocState>({ status: 'idle' });
@@ -79,9 +79,9 @@ export default function Page() {
   // Let the "upload complete" moment land visually before swapping to the document view.
   useEffect(() => {
     if (docState.status !== 'success') return;
-    const { fileName, pageCount, chunkCount, sessionId } = docState;
+    const { fileName, pageCount, chunkCount, sessionId, indexedSections } = docState;
     const timer = setTimeout(() => {
-      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId });
+      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId, indexedSections });
     }, 700);
     return () => clearTimeout(timer);
   }, [docState]);
@@ -106,6 +106,7 @@ export default function Page() {
         pageCount: body.pageCount,
         chunkCount: body.chunkCount,
         sessionId: body.sessionId,
+        indexedSections: body.indexedSections ?? [],
       });
     } catch {
       setDocState({ status: 'error', message: 'Network error — please try again.' });
@@ -198,7 +199,7 @@ export default function Page() {
             <DocumentInfoBar
               fileName={docState.fileName}
               pageCount={docState.pageCount}
-              chunkCount={docState.chunkCount}
+              indexedSections={docState.indexedSections}
               onRemove={resetToIdle}
             />
           )}
