@@ -6,7 +6,7 @@ import { useStreamingText } from '@/hooks/useStreamingText';
 import { MarkdownAnswer } from './MarkdownAnswer';
 import { SourceDrawer } from './SourceDrawer';
 import { ConfidenceMeter } from './ConfidenceMeter';
-import { IconCopy, IconCheck, IconRefresh } from './icons';
+import { IconCopy, IconCheck, IconRefresh, IconFile } from './icons';
 
 export interface ResponseCardProps {
   answer: string;
@@ -20,7 +20,7 @@ export interface ResponseCardProps {
 export function ResponseCard({ answer, citations, confidence, timestamp, onCopy, onRegenerate }: ResponseCardProps) {
   const { displayedText, isStreaming } = useStreamingText(answer);
   const [activeCitationId, setActiveCitationId] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'plain' | 'withCitations' | null>(null);
   const justClosedRef = useRef<{ id: number; time: number } | null>(null);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -35,12 +35,26 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
   const citationById = new Map(citations.map((c) => [c.id, c]));
   const activeCitation = activeCitationId ? citationById.get(activeCitationId) : undefined;
 
+  const flashCopied = (which: 'plain' | 'withCitations') => {
+    setCopied(which);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopied(null), 1600);
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(answer.replace(/\[\d+\]/g, '').trim());
     onCopy();
-    setCopied(true);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setCopied(false), 1600);
+    flashCopied('plain');
+  };
+
+  const handleCopyWithCitations = () => {
+    const sources = citations
+      .map((c) => `[${c.id}] Page ${c.page}, ${c.section} — "${c.excerpt.trim()}"`)
+      .join('\n');
+    const text = sources ? `${answer.trim()}\n\nSources:\n${sources}` : answer.trim();
+    navigator.clipboard.writeText(text);
+    onCopy();
+    flashCopied('withCitations');
   };
 
   return (
@@ -95,20 +109,33 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
           <button
             type="button"
             onClick={handleCopy}
-            title={copied ? 'Copied' : 'Copy answer'}
-            aria-label={copied ? 'Copied' : 'Copy answer'}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-              copied ? 'text-success' : 'text-tertiary hover:text-primary'
+            title={copied === 'plain' ? 'Copied' : 'Copy answer'}
+            aria-label={copied === 'plain' ? 'Copied' : 'Copy answer'}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              copied === 'plain' ? 'text-success' : 'text-tertiary hover:text-primary'
             }`}
           >
-            {copied ? <IconCheck className="h-4 w-4" /> : <IconCopy className="h-4 w-4" />}
+            {copied === 'plain' ? <IconCheck className="h-4 w-4" /> : <IconCopy className="h-4 w-4" />}
           </button>
+          {citations.length > 0 && (
+            <button
+              type="button"
+              onClick={handleCopyWithCitations}
+              title={copied === 'withCitations' ? 'Copied' : 'Copy answer with citations'}
+              aria-label={copied === 'withCitations' ? 'Copied' : 'Copy answer with citations'}
+              className={`inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                copied === 'withCitations' ? 'text-success' : 'text-tertiary hover:text-primary'
+              }`}
+            >
+              {copied === 'withCitations' ? <IconCheck className="h-4 w-4" /> : <IconFile className="h-4 w-4" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={onRegenerate}
             title="Regenerate response"
             aria-label="Regenerate response"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-tertiary transition-colors duration-150 hover:bg-hover hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-tertiary transition-colors duration-150 hover:bg-hover hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <IconRefresh className="h-4 w-4" />
           </button>

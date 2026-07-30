@@ -23,7 +23,7 @@ export function DocumentInfoBar({ fileName, pageCount, chunkCount, onRemove }: D
         onClick={onRemove}
         aria-label={`Remove ${fileName}`}
         title="Remove document"
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-tertiary transition-colors duration-150 hover:bg-hover hover:text-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-tertiary transition-colors duration-150 hover:bg-hover hover:text-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <IconX className="h-4 w-4" />
       </button>

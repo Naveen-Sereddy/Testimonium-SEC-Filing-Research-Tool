@@ -16,7 +16,7 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg font-ui text-[13px] font-medium text-error transition-colors duration-150 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 -ml-2 font-ui text-[13px] font-medium text-error transition-colors duration-150 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <IconRefresh className="h-3.5 w-3.5" />
             Try again

@@ -49,7 +49,7 @@ export function Sidebar({ sessions, activeId, onSelect, onClear }: SidebarProps)
         <button
           type="button"
           onClick={onClear}
-          className="mt-3 self-start rounded-lg px-1 font-ui text-[13px] text-secondary transition-colors duration-150 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="mt-3 inline-flex min-h-[44px] items-center self-start rounded-lg px-2 -ml-2 font-ui text-[13px] text-secondary transition-colors duration-150 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Clear history
         </button>
