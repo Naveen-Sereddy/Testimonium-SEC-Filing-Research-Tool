@@ -28,6 +28,20 @@ verification session — was real client work, not a solo hypothesis
 exercise. See the case study and README for the confirmed engagement
 details.
 
+**Revision (post-launch, round 2):** a second pass after initial launch
+changed several things this spec describes as current. The Settings
+slide-over (§ Settings panel, § Layout & Navigation below) was replaced
+by a static "How this works" modal — Citation Depth moved to a pill row
+next to the composer, theme toggle moved to the nav bar, and neither
+lives behind a settings menu anymore. The sidebar gained a document-name
+header above the nested question list. A persistent right-hand evidence
+panel was added on desktop, updated by any citation click. The upload
+progress bar was replaced with staged honest status text. Touch targets
+were bumped to 44px and a real focus trap was added to the modal. The
+README and case study reflect the current, post-round-2 behavior; treat
+this document as the historical plan that shipped v1, not the current
+architecture.
+
 ## 2. Problem
 
 During earnings season, product managers and analysts need to locate

@@ -2,7 +2,7 @@
 
 **Evidence-grade answers from SEC filings.**
 
-A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
+A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo, as an outside engineer, for a real asset-management research team under NDA: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
 
 **Live demo:** [testimonium.vercel.app](https://testimonium.vercel.app)
 **Repo:** [github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool)
@@ -11,7 +11,7 @@ A research tool for SEC 10-K filings: ask a question, get an answer grounded in 
 
 Earnings season creates a recurring bottleneck: product managers and analysts need to locate specific disclosures inside 10-K filings (risk factor language, revenue segments, compliance statements), but the documents run 150–250 pages. Finding one specific disclosure takes 15–30 minutes of manual skimming. In fintech, I've seen this eat hours every earnings season.
 
-Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at an enterprise price point. This isn't an attempt to compete with them. It's a UX artifact demonstrating how citation-grounded trust could be designed into a research tool, at a scale a solo build can actually prove out.
+Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at an enterprise price point, and the team barely used the ones they already had. Testimonium was scoped and built for this specific team's actual workflow instead, not as a competitor to those platforms. Full engagement details (discovery, shadowing, verification session with real analysts) are in the [case study](https://naveensereddy.com/case-testimonium/); the client's name is withheld under NDA.
 
 ## What it does
 
@@ -20,9 +20,10 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 - Get an answer with a progressive text reveal (the complete response is fetched first, then revealed over ~550ms, not token-level streaming) and inline numbered citations `[1]` `[2]`
 - Click a citation to open a source drawer showing the exact excerpt, page number, and section
 - A confidence gauge on every answer signals how well-supported it is; a model refusal always shows Low with no citations, regardless of retrieval score, so a non-answer never gets dressed up as a confident one
-- Citation depth (brief/standard/detailed) is user-adjustable in Settings and actually changes how many source chunks are retrieved per question (k = 3/5/8)
-- Retrieval is scoped to narrative sections only (MD&A, Risk Factors, Legal Proceedings), not financial tables. That's a stated v1 scope decision, not a gap: the hypothesis under test is retrieval speed on prose, not structured-data parsing.
-- Dark and light themes, full keyboard navigation, WCAG 2.1 AA contrast
+- Citation depth (brief/standard/detailed), controlled from a pill row next to the composer, actually changes how many source chunks are retrieved per question (k = 3/5/8)
+- Retrieval is scoped to narrative sections only (MD&A, Risk Factors, Legal Proceedings), not financial tables. That's a stated v1 scope decision, not a gap: the hypothesis under test is retrieval speed on prose, not structured-data parsing. The document info bar shows exactly which of those sections got indexed after upload.
+- A persistent evidence panel on desktop: click any citation anywhere in the conversation and it updates with the exact excerpt, page, and section, plus a link that opens the reader's own uploaded PDF straight to that page
+- Dark and light themes, full keyboard navigation, a focus-trapped help modal, 44px touch targets throughout, and WCAG 2.1 AA contrast
 
 ## Tech stack
 
@@ -38,7 +39,7 @@ Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` fo
 
 **Narrative sections only.** Retrieval is filtered to MD&A, Risk Factors, and Legal Proceedings via heading detection, explicitly excluding financial tables and cross-filing comparison from v1. This surfaced a real bug during the build: naive heading detection false-positived on a filing's own Table of Contents page (which lists every heading together), silently mislabeling entire sections. Fixed by detecting ToC rows specifically (heading text followed by a dot-leader/page-number pattern) rather than counting bare heading mentions.
 
-**Confidence in the answer header, not settings.** A thin gauge shows High/Medium/Low confidence based on retrieval score overlap, placed where trust evaluation actually happens, at the point of reading an answer, rather than buried in a settings menu.
+**Confidence in the answer header, not a settings menu.** A thin gauge shows High/Medium/Low confidence based on retrieval score overlap, placed where trust evaluation actually happens, at the point of reading an answer. There's no settings panel at all, what used to be one is now a static "How this works" modal, since citation depth and theme are both controlled inline where they're used.
 
 ## What I learned
 
