@@ -12,6 +12,7 @@ export interface UploadResult {
   sessionId: string;
   chunkCount: number;
   pageCount: number;
+  indexedSections: string[];
 }
 
 export async function processUpload(buffer: Buffer): Promise<UploadResult> {
@@ -28,7 +29,9 @@ export async function processUpload(buffer: Buffer): Promise<UploadResult> {
   const sessionId = crypto.randomUUID();
   await addChunks(sessionId, filtered.map((c, i) => ({ ...c, embedding: embeddings[i] })));
 
-  return { sessionId, chunkCount: filtered.length, pageCount: pages.length };
+  const indexedSections = Array.from(new Set(filtered.map((c) => c.section)));
+
+  return { sessionId, chunkCount: filtered.length, pageCount: pages.length, indexedSections };
 }
 
 export interface Citation {

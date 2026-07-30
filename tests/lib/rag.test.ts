@@ -34,6 +34,7 @@ describe('processUpload', () => {
     expect(result.pageCount).toBe(1);
     expect(result.chunkCount).toBe(1);
     expect(result.sessionId).toEqual(expect.any(String));
+    expect(result.indexedSections).toEqual(['Risk Factors']);
     expect(embedTexts).toHaveBeenCalled();
   });
 

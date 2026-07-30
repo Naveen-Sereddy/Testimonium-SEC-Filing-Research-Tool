@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconUpload, IconCheck, IconAlert } from './icons';
 
 export interface UploadZoneProps {
@@ -10,9 +10,32 @@ export interface UploadZoneProps {
   onRetry?: () => void;
 }
 
+// The two early stages are genuinely fast (parsing and section-detection are
+// local, synchronous work) so a short timed label is honest. Embedding is the
+// slow, variable-length part (real Gemini API calls, batched per chunk), so
+// that stage has no fixed duration: it just stays displayed until the real
+// response actually arrives, rather than claiming a fake byte-accurate
+// progress percentage for work whose length depends on document size.
+const EARLY_STAGES = ['Reading PDF…', 'Finding supported sections…'];
+const FINAL_STAGE = 'Indexing…';
+const EARLY_STAGE_MS = 700;
+
 export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [stageIndex, setStageIndex] = useState(0);
+
+  useEffect(() => {
+    if (status !== 'uploading') {
+      setStageIndex(0);
+      return;
+    }
+    if (stageIndex >= EARLY_STAGES.length) return;
+    const timer = setTimeout(() => setStageIndex((i) => i + 1), EARLY_STAGE_MS);
+    return () => clearTimeout(timer);
+  }, [status, stageIndex]);
+
+  const stageLabel = stageIndex < EARLY_STAGES.length ? EARLY_STAGES[stageIndex] : FINAL_STAGE;
 
   const showDragState = isDragOver || status === 'dragover';
   const borderClass = showDragState ? 'border-accent bg-accent-muted' : 'border-border hover:border-border-strong';
@@ -56,11 +79,18 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-muted">
             <IconUpload className="h-5 w-5 animate-pulse text-accent" />
           </div>
-          <p className="font-ui text-[14px] text-secondary">Processing document…</p>
-          <div className="h-1 w-full max-w-[220px] overflow-hidden rounded-full bg-hover">
-            <div
-              className="h-full rounded-full bg-accent"
-              style={{ animation: 'uploadProgress 3.2s cubic-bezier(0.16,1,0.3,1) forwards' }}
+          <p className="font-ui text-[14px] text-secondary" aria-live="polite">
+            {stageLabel}
+          </p>
+          <div className="flex items-center gap-1.5" aria-hidden="true">
+            <span className="h-1 w-1 rounded-full bg-accent" style={{ animation: 'dotPulse 1.1s ease-in-out infinite' }} />
+            <span
+              className="h-1 w-1 rounded-full bg-accent"
+              style={{ animation: 'dotPulse 1.1s ease-in-out infinite', animationDelay: '0.15s' }}
+            />
+            <span
+              className="h-1 w-1 rounded-full bg-accent"
+              style={{ animation: 'dotPulse 1.1s ease-in-out infinite', animationDelay: '0.3s' }}
             />
           </div>
         </>
