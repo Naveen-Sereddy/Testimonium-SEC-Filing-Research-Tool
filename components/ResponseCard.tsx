@@ -15,9 +15,10 @@ export interface ResponseCardProps {
   timestamp: number;
   onCopy: () => void;
   onRegenerate: () => void;
+  onEvidenceSelect?: (citation: Citation) => void;
 }
 
-export function ResponseCard({ answer, citations, confidence, timestamp, onCopy, onRegenerate }: ResponseCardProps) {
+export function ResponseCard({ answer, citations, confidence, timestamp, onCopy, onRegenerate, onEvidenceSelect }: ResponseCardProps) {
   const { displayedText, isStreaming } = useStreamingText(answer);
   const [activeCitationId, setActiveCitationId] = useState<number | null>(null);
   const [copied, setCopied] = useState<'plain' | 'withCitations' | null>(null);
@@ -89,7 +90,12 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
             const jc = justClosedRef.current;
             const wasJustClosed = jc !== null && jc.id === id && Date.now() - jc.time < 300;
             justClosedRef.current = null;
-            setActiveCitationId(wasJustClosed ? null : id);
+            const next = wasJustClosed ? null : id;
+            setActiveCitationId(next);
+            if (next !== null) {
+              const c = citationById.get(next);
+              if (c) onEvidenceSelect?.(c);
+            }
           }}
         />
       </div>
