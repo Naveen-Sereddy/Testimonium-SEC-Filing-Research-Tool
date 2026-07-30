@@ -11,7 +11,8 @@ import { ResponseCard, PendingResponseCard } from '@/components/ResponseCard';
 import { UserMessageBubble } from '@/components/UserMessageBubble';
 import { ErrorState } from '@/components/ErrorState';
 import { SettingsPanel } from '@/components/SettingsPanel';
-import type { QueryResult } from '@/lib/rag';
+import { EvidencePanel } from '@/components/EvidencePanel';
+import type { QueryResult, Citation } from '@/lib/rag';
 
 interface Message extends QueryResult {
   id: string;
@@ -38,6 +39,23 @@ export default function Page() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [citationDepth, setCitationDepth] = useState<'brief' | 'standard' | 'detailed'>('standard');
+  const [evidence, setEvidence] = useState<Citation | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+
+  // Kept client-side only (never uploaded anywhere beyond the parse request)
+  // so the Evidence panel can deep-link into the user's own file, real
+  // page-anchored navigation via the browser's native PDF viewer, not a
+  // placeholder action.
+  useEffect(() => {
+    if (!uploadedFile) {
+      setUploadedFileUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(uploadedFile);
+    setUploadedFileUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [uploadedFile]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
@@ -88,6 +106,7 @@ export default function Page() {
 
   const handleFileSelected = async (file: File) => {
     setDocState({ status: 'uploading' });
+    setUploadedFile(file);
     const formData = new FormData();
     formData.append('file', file);
 
@@ -171,6 +190,8 @@ export default function Page() {
     setRegeneratingId(null);
     setSelectedMessageId(null);
     setInputValue('');
+    setEvidence(null);
+    setUploadedFile(null);
   };
 
   const sessions: SidebarSession[] = messages.map((m) => ({ id: m.id, question: m.question, timestamp: m.timestamp }));
@@ -249,6 +270,7 @@ export default function Page() {
                       timestamp={m.timestamp}
                       onCopy={() => {}}
                       onRegenerate={() => runQuery(m.question, m.id)}
+                      onEvidenceSelect={setEvidence}
                     />
                   )}
                 </div>
@@ -289,6 +311,10 @@ export default function Page() {
             </div>
           )}
         </main>
+
+        {docState.status === 'ready' && (
+          <EvidencePanel citation={evidence} fileName={docState.fileName} fileUrl={uploadedFileUrl} />
+        )}
       </div>
 
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
