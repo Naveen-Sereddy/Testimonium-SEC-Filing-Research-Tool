@@ -203,6 +203,7 @@ export default function Page() {
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
+          documentName={docState.status === 'ready' || docState.status === 'success' ? docState.fileName : null}
           sessions={sessions}
           activeId={selectedMessageId ?? messages.at(-1)?.id ?? null}
           onSelect={(id) => {
