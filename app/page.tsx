@@ -32,6 +32,7 @@ export default function Page() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [lastFailedQuery, setLastFailedQuery] = useState<{ question: string; replaceId?: string } | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -116,6 +117,7 @@ export default function Page() {
     const { sessionId } = docState;
 
     setQueryError(null);
+    setLastFailedQuery(null);
     if (replaceId) setRegeneratingId(replaceId);
     else setPendingQuestion(question);
 
@@ -129,6 +131,7 @@ export default function Page() {
 
       if (!res.ok) {
         setQueryError(body.error ?? 'Something went wrong');
+        setLastFailedQuery({ question, replaceId });
         return;
       }
 
@@ -141,6 +144,7 @@ export default function Page() {
       setMessages((prev) => (replaceId ? prev.map((m) => (m.id === replaceId ? message : m)) : [...prev, message]));
     } catch {
       setQueryError('Network error — please try again.');
+      setLastFailedQuery({ question, replaceId });
     } finally {
       setRegeneratingId(null);
       setPendingQuestion(null);
@@ -148,6 +152,9 @@ export default function Page() {
   };
 
   const resetToIdle = () => {
+    if (messages.length > 0 && !window.confirm('Start a new analysis? This clears the current conversation and document.')) {
+      return;
+    }
     if (docState.status === 'ready' || docState.status === 'success') {
       const { sessionId } = docState;
       fetch('/api/session', {
@@ -170,7 +177,7 @@ export default function Page() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base">
-      <NavBar onNewThread={resetToIdle} onOpenSettings={() => setSettingsOpen(true)} />
+      <NavBar onNewThread={resetToIdle} onOpenHelp={() => setSettingsOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -253,13 +260,28 @@ export default function Page() {
                 </div>
               )}
 
-              {queryError && <ErrorState message={queryError} onRetry={() => setQueryError(null)} />}
+              {queryError && (
+                <ErrorState
+                  message={queryError}
+                  onRetry={() => {
+                    if (lastFailedQuery) runQuery(lastFailedQuery.question, lastFailedQuery.replaceId);
+                    else setQueryError(null);
+                  }}
+                />
+              )}
             </div>
           </div>
 
           {docState.status === 'ready' && (
             <div className="border-t border-border bg-base px-4 py-4 sm:px-6 lg:px-8">
-              <ChatInput value={inputValue} onChange={setInputValue} onSubmit={runQuery} disabled={isBusy} />
+              <ChatInput
+                value={inputValue}
+                onChange={setInputValue}
+                onSubmit={runQuery}
+                disabled={isBusy}
+                citationDepth={citationDepth}
+                onCitationDepthChange={setCitationDepth}
+              />
               <p className="mx-auto mt-2 w-full max-w-[820px] px-1 text-center font-ui text-[11px] text-tertiary">
                 Testimonium can make mistakes. Verify important details against the source document.
               </p>
@@ -268,12 +290,7 @@ export default function Page() {
         </main>
       </div>
 
-      <SettingsPanel
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        citationDepth={citationDepth}
-        onCitationDepthChange={setCitationDepth}
-      />
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

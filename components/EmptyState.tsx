@@ -1,4 +1,6 @@
-const SUGGESTIONS = ['Summarize key findings', 'What are the main policies?', 'Extract action items'];
+// Tied directly to the three sections this app actually indexes, not
+// generic prompts that could apply to any document.
+const SUGGESTIONS = ['What are the top risk factors?', 'Summarize the MD&A section', 'Any pending legal proceedings?'];
 
 export interface EmptyStateProps {
   onSuggestionClick: (text: string) => void;
@@ -20,7 +22,7 @@ export function EmptyState({ onSuggestionClick }: EmptyStateProps) {
             key={s}
             type="button"
             onClick={() => onSuggestionClick(s)}
-            className="rounded-full border border-border bg-overlay px-3.5 py-1.5 font-ui text-[13px] text-secondary transition-colors duration-150 hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-[44px] rounded-full border border-border bg-overlay px-3.5 font-ui text-[13px] text-secondary transition-colors duration-150 hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {s}
           </button>

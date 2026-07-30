@@ -3,14 +3,20 @@
 import { useEffect, useRef } from 'react';
 import { IconSend, IconSpinner } from './icons';
 
+export type CitationDepth = 'brief' | 'standard' | 'detailed';
+
+const DEPTH_LABEL: Record<CitationDepth, string> = { brief: '3', standard: '5', detailed: '8' };
+
 export interface ChatInputProps {
   onSubmit: (question: string) => void;
   disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
+  citationDepth: CitationDepth;
+  onCitationDepthChange: (v: CitationDepth) => void;
 }
 
-export function ChatInput({ onSubmit, disabled, value, onChange }: ChatInputProps) {
+export function ChatInput({ onSubmit, disabled, value, onChange, citationDepth, onCitationDepthChange }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const submit = () => {
@@ -32,6 +38,25 @@ export function ChatInput({ onSubmit, disabled, value, onChange }: ChatInputProp
 
   return (
     <div className="mx-auto w-full max-w-[820px]">
+      <div className="mb-2 flex items-center gap-2 px-1">
+        <span className="font-ui text-[11px] text-tertiary">Evidence depth</span>
+        <div className="flex gap-1" role="group" aria-label="Evidence depth">
+          {(['brief', 'standard', 'detailed'] as const).map((depth) => (
+            <button
+              key={depth}
+              type="button"
+              onClick={() => onCitationDepthChange(depth)}
+              aria-pressed={citationDepth === depth}
+              title={`${depth} — ${DEPTH_LABEL[depth]} source passages per answer`}
+              className={`min-h-[44px] rounded-full border px-2.5 font-ui text-[11px] capitalize transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                citationDepth === depth ? 'border-accent bg-accent-muted text-primary' : 'border-border text-secondary hover:text-primary'
+              }`}
+            >
+              {depth}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="flex items-end gap-2 rounded-2xl border border-border bg-overlay p-2 pl-4 shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-200 ease-standard focus-within:border-accent/70 focus-within:shadow-[0_0_0_3px_var(--accent-muted)]">
         <textarea
           ref={textareaRef}
@@ -54,7 +79,7 @@ export function ChatInput({ onSubmit, disabled, value, onChange }: ChatInputProp
           onClick={submit}
           disabled={!canSend}
           aria-label={disabled ? 'Waiting for response' : 'Send question'}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-on transition-all duration-150 hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-hover disabled:text-tertiary"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on transition-all duration-150 hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-hover disabled:text-tertiary"
         >
           {disabled ? <IconSpinner className="h-4 w-4" /> : <IconSend className="h-4 w-4" />}
         </button>

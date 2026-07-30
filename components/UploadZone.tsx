@@ -88,7 +88,7 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
               e.stopPropagation();
               onRetry?.();
             }}
-            className="rounded-full border border-error-border px-3.5 py-1.5 font-ui text-[13px] font-medium text-error transition-colors hover:bg-error-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-[44px] rounded-full border border-error-border px-3.5 font-ui text-[13px] font-medium text-error transition-colors hover:bg-error-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Try again
           </button>
