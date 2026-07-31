@@ -27,6 +27,7 @@ export function buildPrompt(question: string, context: ContextChunk[]): string {
   return [
     'Answer the question using only the context below. Cite sources inline as [N] matching the numbered context blocks.',
     `If the context does not contain enough information to answer, respond exactly: "${FALLBACK}"`,
+    'Formatting: plain prose, short lists, and **bold** only. Do not use links, tables, images, or code blocks.',
     '',
     `Context:\n${contextBlock}`,
     '',

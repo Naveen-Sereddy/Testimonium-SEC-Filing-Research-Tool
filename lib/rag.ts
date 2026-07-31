@@ -95,7 +95,9 @@ export async function answerQuestion(sessionId: string, question: string, k = 5)
     id: c.index,
     page: c.page,
     section: c.section,
-    excerpt: c.text.slice(0, 200),
+    // Trim to the last whole word within the limit rather than cutting
+    // mid-word, so an excerpt never ends on a fragment like "manufactur".
+    excerpt: c.text.slice(0, 200).replace(/\s+\S*$/, ''),
   }));
 
   return { answer, citations, confidence: confidenceLabel(scored.map((s) => s.score)) };

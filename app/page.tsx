@@ -211,6 +211,7 @@ export default function Page() {
             document.getElementById(`message-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
           onClear={() => {
+            if (!window.confirm('Clear conversation history? This cannot be undone.')) return;
             setMessages([]);
             setSelectedMessageId(null);
           }}
