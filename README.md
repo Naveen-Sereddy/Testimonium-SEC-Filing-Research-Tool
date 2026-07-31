@@ -39,7 +39,7 @@ Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` fo
 
 **Narrative sections only.** Retrieval is filtered to MD&A, Risk Factors, and Legal Proceedings via heading detection, explicitly excluding financial tables and cross-filing comparison from v1. This surfaced a real bug during the build: naive heading detection false-positived on a filing's own Table of Contents page (which lists every heading together), silently mislabeling entire sections. Fixed by detecting ToC rows specifically (heading text followed by a dot-leader/page-number pattern) rather than counting bare heading mentions.
 
-**Confidence in the answer header, not a settings menu.** A thin gauge shows High/Medium/Low confidence based on retrieval score overlap, placed where trust evaluation actually happens, at the point of reading an answer. There's no settings panel at all, what used to be one is now a static "How this works" modal, since citation depth and theme are both controlled inline where they're used.
+**Confidence in the answer header, not a settings menu.** A thin gauge shows High/Medium/Low confidence based on retrieval score overlap, placed where trust evaluation actually happens, at the point of reading an answer. There's no settings panel at all, what used to be one is now an informational "How this works" panel (no controls, just context), since citation depth and theme are both controlled inline where they're used.
 
 ## What I learned
 

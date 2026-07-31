@@ -12,7 +12,6 @@ export function CitationChip({ citation, isActive, isDimmed, onClick }: Citation
     <button
       type="button"
       onClick={onClick}
-      role="button"
       aria-label={`Jump to citation ${citation.id}, page ${citation.page}`}
       aria-pressed={isActive}
       className={[
