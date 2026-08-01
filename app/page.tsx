@@ -12,6 +12,8 @@ import { UserMessageBubble } from '@/components/UserMessageBubble';
 import { ErrorState } from '@/components/ErrorState';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { EvidencePanel } from '@/components/EvidencePanel';
+import { Onboarding } from '@/components/Onboarding';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import type { QueryResult, Citation } from '@/lib/rag';
 
 interface Message extends QueryResult {
@@ -41,6 +43,7 @@ export default function Page() {
   const [citationDepth, setCitationDepth] = useState<'brief' | 'standard' | 'detailed'>('standard');
   const [evidence, setEvidence] = useState<Citation | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const { showOnboarding, complete: completeOnboarding, replay: replayOnboarding } = useOnboarding();
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
 
   // Kept client-side only (never uploaded anywhere beyond the parse request)
@@ -319,7 +322,16 @@ export default function Page() {
         )}
       </div>
 
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onReplayOnboarding={() => {
+          setSettingsOpen(false);
+          replayOnboarding();
+        }}
+      />
+
+      {showOnboarding && <Onboarding onComplete={completeOnboarding} />}
     </div>
   );
 }

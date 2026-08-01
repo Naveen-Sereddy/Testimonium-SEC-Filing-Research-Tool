@@ -7,9 +7,10 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 export interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  onReplayOnboarding: () => void;
 }
 
-export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ isOpen, onClose, onReplayOnboarding }: SettingsPanelProps) {
   const panelRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   useEffect(() => {
@@ -68,6 +69,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               Click a numbered citation to see the exact page, section, and excerpt it came from. Evidence depth (in the composer) controls how many source passages are retrieved per question.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={onReplayOnboarding}
+            className="mt-1 inline-flex min-h-[44px] items-center self-start rounded-lg px-2 -ml-2 font-ui text-[13px] font-medium text-accent transition-colors hover:text-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            Replay the intro →
+          </button>
         </div>
       </div>
     </div>
