@@ -145,3 +145,21 @@ export function IconMessageOff(props: IconProps) {
     </svg>
   );
 }
+
+export function IconShield(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+export function IconQuote(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8 15c-1.5 0-2.5-1-2.5-2.5S6.5 10 8 10c1 0 1.8.6 2.2 1.4.3.7.3 1.6.3 2.6 0 2-1.2 3.5-3 4" />
+      <path d="M17 15c-1.5 0-2.5-1-2.5-2.5S15.5 10 17 10c1 0 1.8.6 2.2 1.4.3.7.3 1.6.3 2.6 0 2-1.2 3.5-3 4" />
+    </svg>
+  );
+}
