@@ -22,14 +22,18 @@ export interface ResponseCardProps {
   onFollowUp?: (question: string) => void;
 }
 
-// Grounded in the real answer's section plus any other section this
-// document actually has indexed — never fully generic canned text.
+// Each follow-up is answered as a brand-new, standalone query (the RAG
+// pipeline has no conversation history, see lib/chat.ts buildPrompt), so
+// every suggestion must be self-contained — no "this"/"the answer above".
+// Grounded in the document's own indexed sections, never generic canned text.
 function followUpSuggestions(citations: Citation[], indexedSections: string[]): string[] {
   if (citations.length === 0) return [];
   const answerSection = citations[0].section;
-  const otherSection = indexedSections.find((s) => s !== answerSection);
-  const suggestions = ['Explain this further', `Summarize the ${answerSection} section`];
-  if (otherSection) suggestions.push(`What does the ${otherSection} section say about this?`);
+  const suggestions = [`Summarize the ${answerSection} section`];
+  const otherSections = indexedSections.filter((s) => s !== answerSection);
+  for (const section of otherSections.slice(0, 2)) {
+    suggestions.push(`What are the key points in the ${section} section?`);
+  }
   return suggestions;
 }
 
