@@ -18,10 +18,12 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 - Upload a 10-K PDF (or use the bundled demo filing)
 - Ask a question in plain language
 - Get an answer with a progressive text reveal (the complete response is fetched first, then revealed over ~550ms, not token-level streaming) and inline numbered citations `[1]` `[2]`
-- Click a citation to open a source drawer showing the exact excerpt, page number, and section
+- Click a citation to open a source drawer showing the exact excerpt, page number, and section, with a link that copies the excerpt to the clipboard so it can be found with ⌘F in the reader's own uploaded PDF
 - A confidence gauge on every answer signals how well-supported it is; a model refusal always shows Low with no citations, regardless of retrieval score, so a non-answer never gets dressed up as a confident one
+- A "Why this answer" disclosure on every response states, in plain language, how many passages were retrieved, from which sections, and how many were strong matches, generated deterministically from the same retrieval numbers behind the confidence gauge, not a separate model call
+- 2-3 follow-up question chips after each answer, grounded in the citation's own section and the document's other indexed sections, not generic canned prompts
 - Citation depth (brief/standard/detailed), controlled from a pill row next to the composer, actually changes how many source chunks are retrieved per question (k = 3/5/8)
-- Retrieval is scoped to narrative sections only (MD&A, Risk Factors, Legal Proceedings), not financial tables. That's a stated v1 scope decision, not a gap: the hypothesis under test is retrieval speed on prose, not structured-data parsing. The document info bar shows exactly which of those sections got indexed after upload.
+- Retrieval is scoped to narrative sections only (MD&A, Risk Factors, Legal Proceedings), not financial tables. That's a stated v1 scope decision, not a gap: the hypothesis under test is retrieval speed on prose, not structured-data parsing. The document info bar shows exactly which of those sections got indexed after upload, alongside the company name and fiscal year end extracted from the filing's own cover page
 - A persistent evidence panel on desktop: click any citation anywhere in the conversation and it updates with the exact excerpt, page, and section, plus a link that opens the reader's own uploaded PDF straight to that page
 - Dark and light themes, full keyboard navigation, a focus-trapped help modal, 44px touch targets throughout, and WCAG 2.1 AA contrast
 
@@ -72,7 +74,6 @@ Getting from code-complete to actually staying up in production surfaced three r
 
 - Multi-document comparison with linked citation trails across filings
 - Table parsing for financial statements, with explicit user consent that an answer includes table-derived values
-- Follow-up question suggestions generated from retrieval context, not generic prompts
 - A moderated test with analysts from a firm that didn't sponsor the build, to check the trust model holds with people who never watched it get made
 
 ## Getting started locally
