@@ -20,6 +20,12 @@ export async function POST(req: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
+    if (file.type !== 'application/pdf') {
+      return NextResponse.json(
+        { error: 'This prototype currently supports SEC 10-K annual reports as PDF files. Please upload a supported filing.' },
+        { status: 400 },
+      );
+    }
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: 'File exceeds 4MB limit' }, { status: 400 });
     }

@@ -6,19 +6,46 @@ import { useStreamingText } from '@/hooks/useStreamingText';
 import { MarkdownAnswer } from './MarkdownAnswer';
 import { SourceDrawer } from './SourceDrawer';
 import { ConfidenceMeter } from './ConfidenceMeter';
-import { IconCopy, IconCheck, IconRefresh, IconFile } from './icons';
+import { IconCopy, IconCheck, IconRefresh, IconFile, IconChevronDown } from './icons';
 
 export interface ResponseCardProps {
   answer: string;
   citations: Citation[];
   confidence: Confidence;
+  explanation: string;
   timestamp: number;
   onCopy: () => void;
   onRegenerate: () => void;
   onEvidenceSelect?: (citation: Citation) => void;
+  fileUrl?: string | null;
+  indexedSections?: string[];
+  onFollowUp?: (question: string) => void;
 }
 
-export function ResponseCard({ answer, citations, confidence, timestamp, onCopy, onRegenerate, onEvidenceSelect }: ResponseCardProps) {
+// Grounded in the real answer's section plus any other section this
+// document actually has indexed — never fully generic canned text.
+function followUpSuggestions(citations: Citation[], indexedSections: string[]): string[] {
+  if (citations.length === 0) return [];
+  const answerSection = citations[0].section;
+  const otherSection = indexedSections.find((s) => s !== answerSection);
+  const suggestions = ['Explain this further', `Summarize the ${answerSection} section`];
+  if (otherSection) suggestions.push(`What does the ${otherSection} section say about this?`);
+  return suggestions;
+}
+
+export function ResponseCard({
+  answer,
+  citations,
+  confidence,
+  explanation,
+  timestamp,
+  onCopy,
+  onRegenerate,
+  onEvidenceSelect,
+  fileUrl,
+  indexedSections = [],
+  onFollowUp,
+}: ResponseCardProps) {
   const { displayedText, isStreaming } = useStreamingText(answer);
   const [activeCitationId, setActiveCitationId] = useState<number | null>(null);
   const [copied, setCopied] = useState<'plain' | 'withCitations' | null>(null);
@@ -35,6 +62,7 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
 
   const citationById = new Map(citations.map((c) => [c.id, c]));
   const activeCitation = activeCitationId ? citationById.get(activeCitationId) : undefined;
+  const followUps = followUpSuggestions(citations, indexedSections);
 
   const flashCopied = (which: 'plain' | 'withCitations') => {
     setCopied(which);
@@ -103,11 +131,22 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
       {activeCitation && (
         <SourceDrawer
           citation={activeCitation}
+          fileUrl={fileUrl}
           onClose={() => {
             justClosedRef.current = { id: activeCitationId!, time: Date.now() };
             setActiveCitationId(null);
           }}
         />
+      )}
+
+      {!isStreaming && (
+        <details className="group mt-3">
+          <summary className="flex min-h-[44px] w-fit cursor-pointer select-none items-center gap-1.5 rounded-lg px-2 -ml-2 font-ui text-[12px] font-medium text-tertiary transition-colors hover:text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+            <IconChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
+            Why this answer
+          </summary>
+          <p className="mt-1.5 max-w-[60ch] font-ui text-[13px] leading-[19px] text-tertiary">{explanation}</p>
+        </details>
       )}
 
       {!isStreaming && (
@@ -148,6 +187,21 @@ export function ResponseCard({ answer, citations, confidence, timestamp, onCopy,
           <span className="ml-auto font-ui text-[11px] text-tertiary">
             {new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
           </span>
+        </div>
+      )}
+
+      {!isStreaming && onFollowUp && followUps.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {followUps.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => onFollowUp(q)}
+              className="min-h-[36px] rounded-full border border-border bg-overlay px-3 font-ui text-[12.5px] text-secondary transition-colors duration-150 hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {q}
+            </button>
+          ))}
         </div>
       )}
     </div>

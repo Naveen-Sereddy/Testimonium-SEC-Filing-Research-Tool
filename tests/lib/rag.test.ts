@@ -15,7 +15,36 @@ vi.mock('../../lib/chat', async (importOriginal) => {
 import { extractPages } from '../../lib/pdf';
 import { embedTexts } from '../../lib/embeddings';
 import { askModel } from '../../lib/chat';
-import { processUpload, answerQuestion, confidenceLabel, NoNarrativeSectionsError } from '../../lib/rag';
+import { processUpload, answerQuestion, confidenceLabel, explainRetrieval, NoNarrativeSectionsError } from '../../lib/rag';
+
+describe('explainRetrieval', () => {
+  it('reports no indexed content when nothing was retrieved', () => {
+    expect(explainRetrieval(0, 0, [], true)).toBe('No indexed content was available to search for this question.');
+  });
+
+  it('names the sections and passage count for a well-supported answer', () => {
+    const text = explainRetrieval(5, 3, ['Risk Factors', 'MD&A'], false);
+    expect(text).toContain('5 passages');
+    expect(text).toContain('Risk Factors, MD&A');
+    expect(text).toContain('3');
+  });
+
+  it('uses singular "passage" for a single result', () => {
+    expect(explainRetrieval(1, 1, ['Risk Factors'], false)).toContain('1 passage from');
+  });
+
+  it('flags weak matches distinctly from strong ones on a real answer', () => {
+    const text = explainRetrieval(5, 0, ['Risk Factors'], false);
+    expect(text).toContain("but none matched closely");
+  });
+
+  it('distinguishes a refusal with some signal from a refusal with none', () => {
+    const withSignal = explainRetrieval(5, 1, ['Risk Factors'], true);
+    const withNone = explainRetrieval(5, 0, ['Risk Factors'], true);
+    expect(withSignal).toContain('none of them directly answered');
+    expect(withNone).toContain('none closely related');
+  });
+});
 
 describe('processUpload', () => {
   beforeEach(() => {

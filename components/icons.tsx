@@ -163,3 +163,11 @@ export function IconQuote(props: IconProps) {
     </svg>
   );
 }
+
+export function IconChevronDown(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}

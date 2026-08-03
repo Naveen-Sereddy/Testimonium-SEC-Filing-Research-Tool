@@ -22,13 +22,23 @@ interface Message extends QueryResult {
   timestamp: number;
 }
 
+interface DocumentInfo {
+  fileName: string;
+  pageCount: number;
+  chunkCount: number;
+  sessionId: string;
+  indexedSections: string[];
+  company: string | null;
+  fiscalYearEnd: string | null;
+}
+
 type DocState =
   | { status: 'idle' }
   | { status: 'dragover' }
   | { status: 'uploading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; fileName: string; pageCount: number; chunkCount: number; sessionId: string; indexedSections: string[] }
-  | { status: 'ready'; fileName: string; pageCount: number; chunkCount: number; sessionId: string; indexedSections: string[] };
+  | ({ status: 'success' } & DocumentInfo)
+  | ({ status: 'ready' } & DocumentInfo);
 
 export default function Page() {
   const [docState, setDocState] = useState<DocState>({ status: 'idle' });
@@ -100,9 +110,9 @@ export default function Page() {
   // Let the "upload complete" moment land visually before swapping to the document view.
   useEffect(() => {
     if (docState.status !== 'success') return;
-    const { fileName, pageCount, chunkCount, sessionId, indexedSections } = docState;
+    const { fileName, pageCount, chunkCount, sessionId, indexedSections, company, fiscalYearEnd } = docState;
     const timer = setTimeout(() => {
-      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId, indexedSections });
+      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId, indexedSections, company, fiscalYearEnd });
     }, 700);
     return () => clearTimeout(timer);
   }, [docState]);
@@ -129,6 +139,8 @@ export default function Page() {
         chunkCount: body.chunkCount,
         sessionId: body.sessionId,
         indexedSections: body.indexedSections ?? [],
+        company: body.company ?? null,
+        fiscalYearEnd: body.fiscalYearEnd ?? null,
       });
     } catch {
       setDocState({ status: 'error', message: 'Network error — please try again.' });
@@ -226,6 +238,8 @@ export default function Page() {
               fileName={docState.fileName}
               pageCount={docState.pageCount}
               indexedSections={docState.indexedSections}
+              company={docState.company}
+              fiscalYearEnd={docState.fiscalYearEnd}
               onRemove={resetToIdle}
             />
           )}
@@ -272,10 +286,14 @@ export default function Page() {
                       answer={m.answer}
                       citations={m.citations}
                       confidence={m.confidence}
+                      explanation={m.explanation}
                       timestamp={m.timestamp}
                       onCopy={() => {}}
                       onRegenerate={() => runQuery(m.question, m.id)}
                       onEvidenceSelect={setEvidence}
+                      fileUrl={uploadedFileUrl}
+                      indexedSections={docState.status === 'ready' ? docState.indexedSections : []}
+                      onFollowUp={setInputValue}
                     />
                   )}
                 </div>
