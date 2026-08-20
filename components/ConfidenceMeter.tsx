@@ -5,9 +5,9 @@ export interface ConfidenceMeterProps {
 }
 
 const CONFIDENCE_STYLES: Record<Confidence, { color: string; width: string; label: string }> = {
-  High: { color: 'bg-success', width: 'w-full', label: 'Supported' },
-  Medium: { color: 'bg-warning', width: 'w-2/3', label: 'Partial' },
-  Low: { color: 'bg-error', width: 'w-1/3', label: 'Uncertain' },
+  High: { color: 'bg-success', width: 'w-full', label: 'High' },
+  Medium: { color: 'bg-warning', width: 'w-2/3', label: 'Medium' },
+  Low: { color: 'bg-error', width: 'w-1/3', label: 'Low' },
 };
 
 export function ConfidenceMeter({ confidence }: ConfidenceMeterProps) {
