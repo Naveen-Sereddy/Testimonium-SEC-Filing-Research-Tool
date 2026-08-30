@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "project": "Testimonium",
+  "portfolio": {
+    "slug": "case-testimonium",
+    "liveUrl": "https://testimonium.vercel.app"
+  },
+  "sync": {
+    "copyRules": [],
+    "captureServer": {
+      "command": "npm",
+      "args": ["run", "dev", "--", "--port", "{port}"]
+    },
+    "captureRules": [
+      {
+        "source": "app/page.tsx",
+        "urlPath": "/",
+        "target": "src/assets/case/testimonium/01-empty-upload.png",
+        "viewport": { "width": 1200, "height": 750 },
+        "localStorage": { "testimonium-onboarded": "1" }
+      }
+    ]
+  }
+}
