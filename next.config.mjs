@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['pdf-parse', 'pdfjs-dist'],
-    // pdfjs-dist dynamically imports its worker module at a computed path; Vercel's
-    // file tracer can't see that statically, so it gets dropped from the deployed
-    // function unless force-included here.
-    outputFileTracingIncludes: {
-      '/api/upload': ['./node_modules/pdfjs-dist/**/*'],
-    },
+  serverExternalPackages: ['pdf-parse', 'pdfjs-dist'],
+  // pdfjs-dist dynamically imports its worker module at a computed path; Vercel's
+  // file tracer can't see that statically, so it gets dropped from the deployed
+  // function unless force-included here.
+  outputFileTracingIncludes: {
+    '/api/upload': ['./node_modules/pdfjs-dist/**/*'],
+  },
+  turbopack: {
+    root: process.cwd(),
   },
 };
 
