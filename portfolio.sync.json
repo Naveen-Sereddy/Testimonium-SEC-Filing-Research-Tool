@@ -17,6 +17,7 @@
         "urlPath": "/",
         "target": "src/assets/case/testimonium/01-empty-upload.png",
         "viewport": { "width": 1200, "height": 750 },
+        "deviceScaleFactor": 2,
         "localStorage": { "testimonium-onboarded": "1" }
       }
     ]
