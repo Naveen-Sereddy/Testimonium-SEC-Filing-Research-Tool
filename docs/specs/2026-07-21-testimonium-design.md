@@ -89,26 +89,27 @@ account.
 
 ## 5. Scope
 
-**In — v1**
-- PDF upload: drag-drop, click-browse, Ctrl+V paste
-- Retrieval from narrative sections only: MD&A, Risk Factors, Legal Proceedings
+**In — current shipped scope**
+- PDF upload: drag-drop or click-browse for one or two Form 10-K annual filings
+- Retrieval from MD&A, Risk Factors, Legal Proceedings, and conservatively detected primary financial-statement tables
 - Query → answer with numbered inline citations [1] [2]
+- Two-filing comparison with section-level changes and expandable paragraph-level excerpts
 - Source drawer: exact excerpt + page number + section heading
 - Confidence meter per answer, in the answer header (not settings)
 - Dark + light theme toggle
 - "I don't know" fallback when context is insufficient
 
-**Out — v1 (deliberate, stated as design decisions not gaps)**
-- Financial tables (income statements, balance sheets). Hypothesis under test is retrieval speed on prose, not structured/tabular data. Flagged explicitly in the UI copy and case study — not a silent gap.
-- Cross-filing comparison. Single-document mode keeps citation precision tight.
+**Out — current boundaries**
+- 10-Q and non-SEC document formats. The current parser and validation are intentionally tuned to annual Form 10-K filings.
+- Full XBRL conformance and every possible PDF table layout. Table extraction is conservative and keeps source text visible when structure is uncertain.
 - Non-SEC document formats. Chunking/section-detection tuned to 10-K structure.
 - Browser extension / SEC.gov live integration.
 - Persistent storage across sessions. **Revision:** a session's chunks now survive across serverless instances via Redis (see section 14), but only for that session's 1-hour TTL — there's still no cross-session history, no accounts, no multi-day persistence.
 
 ## 6. Open Questions (resolved before build starts)
 
-1. PDF viewer side-by-side vs. source-drawer-only? → **Resolved:** source drawer only. Keeps the reading column at optimal measure (760px); a side-by-side viewer would fight the 12-column layout at the 1024px breakpoint.
-2. Confidence threshold cutoffs? → **Resolved:** High ≥ 0.85 similarity across ≥3 sources, Medium 0.60–0.84, Low < 0.60 or non-overlapping sources. Verbal labels ("Supported" / "Partial" / "Uncertain") shown alongside the gauge, not numeric tiers alone — numeric-only tiers tested vague in review.
+1. PDF viewer side-by-side vs. source-drawer-only? → **Resolved for answer reading:** source drawer remains the primary citation surface. Filing comparison adds a separate two-column evidence view so the answer column stays readable.
+2. Confidence threshold cutoffs? → **Resolved for the provisional profile:** High ≥ 0.85 similarity across ≥3 sources, Medium ≥ 0.60, Low below that or on refusal. The implementation now exposes a calibration function so these values can be replaced by a labeled benchmark profile without changing retrieval code.
 3. Max upload file size? → **Resolved:** 20MB at spec time. **Revision:** lowered to 4MB post-launch after confirming Vercel Functions hard-cap request bodies at 4.5MB platform-wide (not configurable) — the original 20MB figure would have 413'd before this app's own check ever ran.
 
 ## 7. Typography
