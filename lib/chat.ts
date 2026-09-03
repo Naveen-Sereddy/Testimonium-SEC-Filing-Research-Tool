@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { TableMetadata } from './chunk';
 
 let client: OpenAI | undefined;
 
@@ -14,20 +15,34 @@ function getClient(): OpenAI {
 
 export interface ContextChunk {
   index: number;
+  chunkId?: string;
   text: string;
   page: number;
   section: string;
+  documentId?: string;
+  fileName?: string;
+  filingYear?: number | null;
+  kind?: 'prose' | 'table';
+  table?: TableMetadata;
 }
 
 export const FALLBACK = "I don't know based on the provided document.";
 
 export function buildPrompt(question: string, context: ContextChunk[]): string {
-  const contextBlock = context.map((c) => `[${c.index}] (Page ${c.page}, ${c.section})\n${c.text}`).join('\n\n');
+  const contextBlock = context
+    .map((c) => {
+      const filing = c.fileName ? `, Filing ${c.filingYear ?? 'year unavailable'} (${c.fileName})` : '';
+      const table = c.kind === 'table' && c.table
+        ? `, Table: ${c.table.title}, columns: ${c.table.columns.join(', ')}${c.table.unitScale ? `, units: ${c.table.unitScale}` : ''}`
+        : '';
+      return `[${c.index}] (Page ${c.page}, ${c.section}${filing}${table})\n${c.text}`;
+    })
+    .join('\n\n');
 
   return [
     'Answer the question using only the context below. Cite sources inline as [N] matching the numbered context blocks.',
     `If the context does not contain enough information to answer, respond exactly: "${FALLBACK}"`,
-    'Formatting: plain prose, short lists, and **bold** only. Do not use links, tables, images, or code blocks.',
+    'Formatting: plain prose, short lists, and **bold** only. For financial-statement questions, you may use a compact Markdown table. Copy every number and unit exactly as written, preserve parentheses for negative values, and cite every row or value. Do not use links, images, or code blocks.',
     '',
     `Context:\n${contextBlock}`,
     '',

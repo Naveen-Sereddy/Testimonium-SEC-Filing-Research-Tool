@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { answerQuestion } from '@/lib/rag';
 import { checkQueryRateLimit } from '@/lib/ratelimit';
+import { isValidSessionId } from '@/lib/session';
 
 const CITATION_DEPTH_TO_K = { brief: 3, standard: 5, detailed: 8 } as const;
 type CitationDepth = keyof typeof CITATION_DEPTH_TO_K;
@@ -15,7 +16,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many questions, please wait a minute and try again' }, { status: 429 });
   }
 
-  const body = await req.json().catch(() => null);
+  let body: { question?: unknown; sessionId?: unknown; citationDepth?: unknown } | null;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
+  }
   const question = typeof body?.question === 'string' ? body.question.trim() : '';
   const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
   const citationDepth = body?.citationDepth;
@@ -24,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!question) {
     return NextResponse.json({ error: 'Question is required' }, { status: 400 });
   }
-  if (!sessionId) {
+  if (!isValidSessionId(sessionId)) {
     return NextResponse.json({ error: 'No document session, please upload a document first' }, { status: 400 });
   }
 

@@ -1,11 +1,13 @@
 import type { RawPage, Chunk } from './chunk';
 
 export const ALLOWED_SECTIONS = ['Risk Factors', 'Legal Proceedings', 'MD&A'] as const;
+export const TABLE_SECTION = 'Financial Statements' as const;
 
 const SECTION_PATTERNS: Array<[RegExp, string]> = [
   [/item\s*1a\s*[.:\-–—]?\s*risk factors/i, 'Risk Factors'],
   [/item\s*3\s*[.:\-–—]?\s*legal proceedings/i, 'Legal Proceedings'],
   [/item\s*7\s*[.:\-–—]?\s*management.?s discussion/i, 'MD&A'],
+  [/item\s*8\s*[.:\-–—]?\s*(?:financial statements|financial data)/i, TABLE_SECTION],
 ];
 
 function isTableOfContents(pageText: string): boolean {
@@ -43,4 +45,8 @@ export function tagAndFilterChunks(
   return chunks
     .map((chunk) => ({ ...chunk, section: sectionMap.get(chunk.page) ?? 'Unknown' }))
     .filter((chunk) => (ALLOWED_SECTIONS as readonly string[]).includes(chunk.section));
+}
+
+export function sectionLabelForChunk(section: string, kind: 'prose' | 'table' = 'prose'): string {
+  return kind === 'table' ? TABLE_SECTION : section;
 }

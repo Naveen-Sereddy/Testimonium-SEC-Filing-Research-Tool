@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "npm run eval:contract && npm run eval:smoke",
+    "eval:smoke": "tsx scripts/eval.ts",
+    "eval:contract": "tsx scripts/eval/validate-golden.ts"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",

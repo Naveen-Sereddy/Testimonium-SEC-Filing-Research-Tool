@@ -31,6 +31,7 @@ const DEMO_PDF = path.resolve(__dirname, '../public/demo/sample-10k.pdf');
 interface GoldenCase {
   question: string;
   shouldAnswer: boolean;
+  expectedSections: string[];
   note: string;
 }
 
@@ -38,38 +39,44 @@ const GOLDEN_SET: GoldenCase[] = [
   {
     question: 'What are the top risk factors mentioned in this document?',
     shouldAnswer: true,
+    expectedSections: ['Risk Factors'],
     note: 'Core risk-factors content, present in every observed run this build',
   },
   {
     question: "Summarize the risks related to the company's intellectual property",
     shouldAnswer: true,
+    expectedSections: ['Risk Factors'],
     note: 'Narrower risk-factors sub-topic',
   },
   {
     question: "What is the company's accumulated deficit?",
     shouldAnswer: true,
+    expectedSections: ['Risk Factors'],
     note: 'Specific figure from the financial-condition risk factor',
   },
   {
     question: 'What is this document about?',
     shouldAnswer: true,
+    expectedSections: ['Risk Factors', 'MD&A', 'Legal Proceedings'],
     note: 'Broad meta-question, not a keyword match to any single passage',
   },
   {
     question: "What was the CEO's total compensation last year?",
     shouldAnswer: false,
+    expectedSections: [],
     note: 'Not in narrative sections (compensation tables are excluded by design)',
   },
   {
     question: "What color is the company's logo?",
     shouldAnswer: false,
+    expectedSections: [],
     note: 'Not the kind of fact a 10-K narrative section contains at all',
   },
 ];
 
 interface QueryResult {
   answer: string;
-  citations: { page: number }[];
+  citations: { page: number; section: string }[];
   confidence: 'High' | 'Medium' | 'Low';
 }
 
@@ -101,6 +108,12 @@ async function main() {
   console.log(`Session ${sessionId}, ${pageCount} pages\n`);
 
   let passed = 0;
+  let citationCount = 0;
+  let validCitationPages = 0;
+  let sectionMatches = 0;
+  let sectionCitations = 0;
+  let correctRefusals = 0;
+  let refusalCases = 0;
   const rows: string[] = [];
 
   for (const c of GOLDEN_SET) {
@@ -112,6 +125,15 @@ async function main() {
     const pagesInRange = result.citations.every((cit) => cit.page >= 1 && cit.page <= pageCount);
     const pass = behaviorCorrect && refusalConsistent && pagesInRange;
     if (pass) passed++;
+    citationCount += result.citations.length;
+    validCitationPages += result.citations.filter((citation) => citation.page >= 1 && citation.page <= pageCount).length;
+    if (c.shouldAnswer) {
+      sectionCitations += result.citations.length;
+      sectionMatches += result.citations.filter((citation) => c.expectedSections.includes(citation.section)).length;
+    } else {
+      refusalCases += 1;
+      if (refused && refusalConsistent) correctRefusals += 1;
+    }
 
     rows.push(
       [
@@ -128,6 +150,10 @@ async function main() {
 
   console.log(rows.join('\n'));
   console.log(`\n${passed}/${GOLDEN_SET.length} passed\n`);
+  console.log('Observed smoke metrics:');
+  console.log(`  Retrieval section precision: ${sectionMatches}/${sectionCitations}`);
+  console.log(`  Citation page validity: ${validCitationPages}/${citationCount}`);
+  console.log(`  Refusal accuracy: ${correctRefusals}/${refusalCases}\n`);
 
   console.log('Citation Depth check (same question, k=3/5/8):');
   const depths: Array<'brief' | 'standard' | 'detailed'> = ['brief', 'standard', 'detailed'];
@@ -143,7 +169,7 @@ async function main() {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId }),
-  }).catch(() => {});
+  }).catch((error) => console.error('Session cleanup failed:', error));
 
   const allPass = passed === GOLDEN_SET.length && depthWorks;
   if (!allPass) process.exitCode = 1;

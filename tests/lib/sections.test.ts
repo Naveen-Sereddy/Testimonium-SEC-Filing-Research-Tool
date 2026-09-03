@@ -54,6 +54,11 @@ describe('sectionsForPages', () => {
     expect(map.get(3)).toBe('MD&A');
   });
 
+  it('detects Item 8 as a financial-statements section for table extraction', () => {
+    const map = sectionsForPages([{ pageNumber: 8, text: 'Item 8. Financial Statements\nConsolidated Balance Sheets' }]);
+    expect(map.get(8)).toBe('Financial Statements');
+  });
+
   it('does not misclassify pages with cross-references as table-of-contents', () => {
     // This page has a real heading (Item 1A.) plus a prose cross-reference (Item 7)
     // Bare "Item N" pattern would see 2 matches and wrongly flag it as ToC,

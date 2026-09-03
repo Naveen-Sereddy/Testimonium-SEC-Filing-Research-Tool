@@ -1,4 +1,5 @@
 import { IconFile, IconX } from './icons';
+import type { SessionDocument } from '@/lib/store';
 
 export interface DocumentInfoBarProps {
   fileName: string;
@@ -7,9 +8,11 @@ export interface DocumentInfoBarProps {
   company: string | null;
   fiscalYearEnd: string | null;
   onRemove: () => void;
+  documents?: SessionDocument[];
+  onCompare?: () => void;
 }
 
-export function DocumentInfoBar({ fileName, pageCount, indexedSections, company, fiscalYearEnd, onRemove }: DocumentInfoBarProps) {
+export function DocumentInfoBar({ fileName, pageCount, indexedSections, company, fiscalYearEnd, onRemove, documents = [], onCompare }: DocumentInfoBarProps) {
   const primary = company ?? fileName;
   const rest = [
     company && fiscalYearEnd ? `FY ended ${fiscalYearEnd}` : null,
@@ -28,15 +31,26 @@ export function DocumentInfoBar({ fileName, pageCount, indexedSections, company,
           <span className="text-primary">{primary}</span> · {rest}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${fileName}`}
-        title="Remove document"
-        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-tertiary transition-colors duration-150 hover:bg-hover hover:text-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        <IconX className="h-4 w-4" />
-      </button>
+      <div className="flex shrink-0 items-center gap-1">
+        {documents.length > 1 && onCompare && (
+          <button
+            type="button"
+            onClick={onCompare}
+            className="min-h-[44px] rounded-full border border-border px-3 font-ui text-[12px] font-medium text-secondary transition-colors hover:border-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            Compare filings
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${fileName}`}
+          title="Remove document"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-tertiary transition-colors duration-150 hover:bg-hover hover:text-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <IconX className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

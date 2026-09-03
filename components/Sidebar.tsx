@@ -14,11 +14,9 @@ export interface SidebarProps {
   onClear: () => void;
 }
 
-// One document per session is a deliberate v1 scope decision (see the
-// design spec, section 5: "cross-filing comparison... single-document mode
-// keeps citation precision tight"), not a gap. So this nests questions
-// under the one active filing rather than fabricating a multi-document
-// switcher the app doesn't actually have.
+// Questions remain nested under the active session. A session may contain one
+// filing for ordinary Q&A or a pair for comparison; the comparison surface is
+// intentionally separate from the conversation so the reading flow stays calm.
 export function Sidebar({ documentName, sessions, activeId, onSelect, onClear }: SidebarProps) {
   return (
     <aside className="hidden w-[260px] shrink-0 flex-col border-r border-border bg-raised p-4 md:flex">
@@ -45,7 +43,7 @@ export function Sidebar({ documentName, sessions, activeId, onSelect, onClear }:
                   type="button"
                   onClick={() => onSelect(s.id)}
                   aria-current={activeId === s.id ? 'true' : undefined}
-                  className={`w-full rounded-lg px-3 py-2 text-left transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                  className={`min-h-[44px] w-full rounded-lg px-3 py-2 text-left transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                     activeId === s.id ? 'bg-accent-muted' : 'hover:bg-hover'
                   }`}
                 >

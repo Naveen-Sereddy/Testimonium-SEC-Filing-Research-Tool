@@ -7,6 +7,7 @@ export interface UploadZoneProps {
   status: 'idle' | 'dragover' | 'uploading' | 'success' | 'error';
   errorMessage?: string;
   onFileSelected: (file: File) => void;
+  onFilesSelected?: (files: File[]) => void;
   onRetry?: () => void;
 }
 
@@ -20,7 +21,7 @@ const EARLY_STAGES = ['Reading PDF…', 'Finding supported sections…'];
 const FINAL_STAGE = 'Indexing…';
 const EARLY_STAGE_MS = 700;
 
-export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: UploadZoneProps) {
+export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelected, onRetry }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
@@ -57,8 +58,9 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
       onDrop={(e) => {
         e.preventDefault();
         setIsDragOver(false);
-        const file = e.dataTransfer.files[0];
-        if (file) onFileSelected(file);
+        const files = Array.from(e.dataTransfer.files).filter((file) => file.type === 'application/pdf').slice(0, 2);
+        if (files.length > 1 && onFilesSelected) onFilesSelected(files);
+        else if (files[0]) onFileSelected(files[0]);
       }}
       className={`mx-auto flex w-full max-w-[520px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:p-14 ${borderClass}`}
     >
@@ -66,11 +68,13 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
         ref={inputRef}
         type="file"
         accept="application/pdf"
+        multiple
         className="hidden"
         aria-describedby="upload-help"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onFileSelected(file);
+          const files = Array.from(e.target.files ?? []).filter((file) => file.type === 'application/pdf').slice(0, 2);
+          if (files.length > 1 && onFilesSelected) onFilesSelected(files);
+          else if (files[0]) onFileSelected(files[0]);
         }}
       />
 
@@ -129,9 +133,9 @@ export function UploadZone({ status, errorMessage, onFileSelected, onRetry }: Up
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-hover">
             <IconUpload className="h-5 w-5 text-secondary" />
           </div>
-          <p className="font-ui text-[15px] leading-[22px] text-secondary">Drop an SEC 10-K PDF here, or click to browse</p>
+          <p className="font-ui text-[15px] leading-[22px] text-secondary">Drop one or two SEC 10-K PDFs here, or click to browse</p>
           <p id="upload-help" className="font-ui text-[12px] text-tertiary">
-            MD&amp;A, Risk Factors &amp; Legal Proceedings sections · up to 4MB
+            Compare annual filings year over year · 4MB combined upload limit
           </p>
         </>
       )}

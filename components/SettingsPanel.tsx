@@ -54,7 +54,7 @@ export function SettingsPanel({ isOpen, onClose, onReplayOnboarding }: SettingsP
           <div>
             <p className="mb-1.5 font-ui text-[11px] font-medium uppercase tracking-[0.08em] text-secondary">Supported documents</p>
             <p className="font-ui text-[13px] leading-[19px] text-primary">
-              SEC 10-K filings only. Indexing is limited to MD&amp;A, Risk Factors, and Legal Proceedings, financial tables and other filing types aren&apos;t supported yet.
+              SEC 10-K filings only. Upload one filing for research or two years from the same company for comparison. Indexing covers MD&amp;A, Risk Factors, Legal Proceedings, and primary financial statements.
             </p>
           </div>
           <div>

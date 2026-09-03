@@ -7,6 +7,17 @@ export interface Chunk {
   id: string;
   text: string;
   page: number;
+  /** Content type is optional for backwards compatibility with existing fixtures. */
+  kind?: 'prose' | 'table';
+  table?: TableMetadata;
+}
+
+export interface TableMetadata {
+  title: string;
+  columns: string[];
+  rowLabel?: string;
+  unitScale?: string;
+  rows?: Array<{ label: string; values: string[] }>;
 }
 
 export function chunkPages(pages: RawPage[], chunkSize = 1000, overlap = 200): Chunk[] {

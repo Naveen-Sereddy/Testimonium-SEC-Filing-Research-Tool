@@ -13,8 +13,11 @@ import { ErrorState } from '@/components/ErrorState';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { EvidencePanel } from '@/components/EvidencePanel';
 import { Onboarding } from '@/components/Onboarding';
+import { ComparisonPanel } from '@/components/ComparisonPanel';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import type { QueryResult, Citation } from '@/lib/rag';
+import type { SessionDocument } from '@/lib/store';
+import type { FilingComparison } from '@/lib/compare';
 
 interface Message extends QueryResult {
   id: string;
@@ -30,6 +33,7 @@ interface DocumentInfo {
   indexedSections: string[];
   company: string | null;
   fiscalYearEnd: string | null;
+  documents: SessionDocument[];
 }
 
 type DocState =
@@ -53,22 +57,26 @@ export default function Page() {
   const [citationDepth, setCitationDepth] = useState<'brief' | 'standard' | 'detailed'>('standard');
   const [evidence, setEvidence] = useState<Citation | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [comparison, setComparison] = useState<FilingComparison | null>(null);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
   const { showOnboarding, complete: completeOnboarding, replay: replayOnboarding } = useOnboarding();
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploadedFileUrls, setUploadedFileUrls] = useState<Record<string, string>>({});
 
   // Kept client-side only (never uploaded anywhere beyond the parse request)
   // so the Evidence panel can deep-link into the user's own file, real
   // page-anchored navigation via the browser's native PDF viewer, not a
   // placeholder action.
   useEffect(() => {
-    if (!uploadedFile) {
-      setUploadedFileUrl(null);
+    if (uploadedFiles.length === 0 && !uploadedFile) {
+      setUploadedFileUrls({});
       return;
     }
-    const url = URL.createObjectURL(uploadedFile);
-    setUploadedFileUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [uploadedFile]);
+    const files = uploadedFiles.length > 0 ? uploadedFiles : [uploadedFile as File];
+    const urls = Object.fromEntries(files.map((file, index) => [`filing-${index + 1}`, URL.createObjectURL(file)]));
+    setUploadedFileUrls(urls);
+    return () => Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+  }, [uploadedFile, uploadedFiles]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
@@ -110,18 +118,20 @@ export default function Page() {
   // Let the "upload complete" moment land visually before swapping to the document view.
   useEffect(() => {
     if (docState.status !== 'success') return;
-    const { fileName, pageCount, chunkCount, sessionId, indexedSections, company, fiscalYearEnd } = docState;
+    const { fileName, pageCount, chunkCount, sessionId, indexedSections, company, fiscalYearEnd, documents } = docState;
     const timer = setTimeout(() => {
-      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId, indexedSections, company, fiscalYearEnd });
+      setDocState({ status: 'ready', fileName, pageCount, chunkCount, sessionId, indexedSections, company, fiscalYearEnd, documents });
     }, 700);
     return () => clearTimeout(timer);
   }, [docState]);
 
-  const handleFileSelected = async (file: File) => {
+  const handleFilesSelected = async (files: File[]) => {
+    if (files.length === 0) return;
     setDocState({ status: 'uploading' });
-    setUploadedFile(file);
+    setUploadedFiles(files);
+    setUploadedFile(files[0]);
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach((file) => formData.append('files', file));
 
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
@@ -134,18 +144,21 @@ export default function Page() {
 
       setDocState({
         status: 'success',
-        fileName: file.name,
+        fileName: files.map((file) => file.name).join(' · '),
         pageCount: body.pageCount,
         chunkCount: body.chunkCount,
         sessionId: body.sessionId,
         indexedSections: body.indexedSections ?? [],
         company: body.company ?? null,
         fiscalYearEnd: body.fiscalYearEnd ?? null,
+        documents: body.documents ?? [],
       });
     } catch {
       setDocState({ status: 'error', message: 'Network error — please try again.' });
     }
   };
+
+  const handleFileSelected = (file: File) => handleFilesSelected([file]);
 
   const runQuery = async (question: string, replaceId?: string) => {
     if (docState.status !== 'ready') return;
@@ -192,11 +205,11 @@ export default function Page() {
     }
     if (docState.status === 'ready' || docState.status === 'success') {
       const { sessionId } = docState;
-      fetch('/api/session', {
+      void fetch('/api/session', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
-      }).catch(() => {});
+      }).catch((error) => console.error('Session cleanup failed:', error));
     }
     setDocState({ status: 'idle' });
     setMessages([]);
@@ -207,7 +220,33 @@ export default function Page() {
     setInputValue('');
     setEvidence(null);
     setUploadedFile(null);
+    setUploadedFiles([]);
+    setComparison(null);
+    setComparisonError(null);
   };
+
+  const runComparison = async () => {
+    if (docState.status !== 'ready' || docState.documents.length < 2) return;
+    setComparisonError(null);
+    try {
+      const res = await fetch('/api/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: docState.sessionId }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setComparisonError(body.error ?? 'Comparison failed');
+        return;
+      }
+      setComparison(body as FilingComparison);
+    } catch {
+      setComparisonError('Network error — please try again.');
+    }
+  };
+
+  const fileUrlForCitation = (citation: Citation) =>
+    citation.documentId ? uploadedFileUrls[citation.documentId] ?? null : uploadedFileUrls['filing-1'] ?? null;
 
   const sessions: SidebarSession[] = messages.map((m) => ({ id: m.id, question: m.question, timestamp: m.timestamp }));
   const isBusy = pendingQuestion !== null || regeneratingId !== null;
@@ -241,7 +280,22 @@ export default function Page() {
               company={docState.company}
               fiscalYearEnd={docState.fiscalYearEnd}
               onRemove={resetToIdle}
+              documents={docState.documents}
+              onCompare={runComparison}
             />
+          )}
+
+          {comparison && (
+            <ComparisonPanel
+              comparison={comparison}
+              onClose={() => setComparison(null)}
+              fileUrlForDocumentId={(documentId) => uploadedFileUrls[documentId] ?? null}
+            />
+          )}
+          {comparisonError && (
+            <p role="alert" className="border-b border-border bg-base px-4 py-3 text-center font-ui text-[13px] text-error">
+              {comparisonError}
+            </p>
           )}
 
           <div ref={scrollContainerRef} className="scroll-thin flex-1 overflow-y-auto scroll-smooth px-4 sm:px-6 lg:px-8">
@@ -262,6 +316,7 @@ export default function Page() {
                     }
                     errorMessage={docState.status === 'error' ? docState.message : undefined}
                     onFileSelected={handleFileSelected}
+                    onFilesSelected={handleFilesSelected}
                     onRetry={() => setDocState({ status: 'idle' })}
                   />
                 </div>
@@ -291,7 +346,8 @@ export default function Page() {
                       onCopy={() => {}}
                       onRegenerate={() => runQuery(m.question, m.id)}
                       onEvidenceSelect={setEvidence}
-                      fileUrl={uploadedFileUrl}
+                      fileUrl={uploadedFileUrls['filing-1'] ?? null}
+                      fileUrlForCitation={fileUrlForCitation}
                       indexedSections={docState.status === 'ready' ? docState.indexedSections : []}
                       onFollowUp={setInputValue}
                     />
@@ -336,7 +392,12 @@ export default function Page() {
         </main>
 
         {docState.status === 'ready' && (
-          <EvidencePanel citation={evidence} fileName={docState.fileName} fileUrl={uploadedFileUrl} />
+          <EvidencePanel
+            citation={evidence}
+            fileName={docState.fileName}
+            fileUrl={uploadedFileUrls['filing-1'] ?? null}
+            fileUrlForCitation={fileUrlForCitation}
+          />
         )}
       </div>
 

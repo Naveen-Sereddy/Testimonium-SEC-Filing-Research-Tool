@@ -12,7 +12,7 @@ export function CitationChip({ citation, isActive, isDimmed, onClick }: Citation
     <button
       type="button"
       onClick={onClick}
-      aria-label={`Jump to citation ${citation.id}, page ${citation.page}`}
+      aria-label={`Jump to citation ${citation.id}, ${citation.filingYear ? `filing year ${citation.filingYear}, ` : ''}page ${citation.page}`}
       aria-pressed={isActive}
       className={[
         // Visual size stays 24px, matching the inline-with-prose design (a

@@ -1,6 +1,6 @@
 // Tied directly to the three sections this app actually indexes, not
 // generic prompts that could apply to any document.
-const SUGGESTIONS = ['What are the top risk factors?', 'Summarize the MD&A section', 'Any pending legal proceedings?'];
+const SUGGESTIONS = ['What are the top risk factors?', 'Summarize the MD&A section', 'What are total revenues by year?', 'Any pending legal proceedings?'];
 
 export interface EmptyStateProps {
   onSuggestionClick: (text: string) => void;

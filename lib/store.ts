@@ -1,28 +1,27 @@
 import type { Chunk } from './chunk';
 
+export interface SessionDocument {
+  id: string;
+  fileName: string;
+  company: string | null;
+  fiscalYearEnd: string | null;
+  filingYear: number | null;
+  pageCount: number;
+  indexedSections: string[];
+}
+
 export interface StoredChunk extends Chunk {
   section: string;
   embedding: number[];
+  documentId?: string;
 }
 
-// Serverless functions don't share memory across instances, so a plain module
-// array only survives as long as a request happens to land back on the same
-// warm instance. Upstash Redis (via the Vercel Marketplace Redis integration)
-// persists chunks across instances, keyed per upload session. The in-memory
-// Map is a local-dev fallback only (single process, no cross-instance problem
-// there) so `npm run dev` works without Redis creds.
-//
-// Each chunk is stored under its own key rather than one big JSON blob per
-// session: a full document's chunks, embeddings included, comfortably exceed
-// Upstash's 10MB single-request limit, while a single chunk (~1000 chars of
-// text plus its embedding vector) never comes close.
 const SESSION_TTL_SECONDS = 60 * 60;
-// A pipelined write or an mget read across every chunk key still bundles
-// everything into one request/response, so either direction can hit the same
-// 10MB ceiling a single big blob would. Batching both keeps each round trip
-// comfortably under that regardless of document size.
-const KV_BATCH_SIZE = 30;
+export const KV_BATCH_SIZE = 30;
+const DEFAULT_DOCUMENT_ID = 'document';
+
 const memoryStore = new Map<string, StoredChunk[]>();
+const memoryDocuments = new Map<string, SessionDocument[]>();
 
 function hasKv(): boolean {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
@@ -36,55 +35,127 @@ async function kvClient() {
   });
 }
 
-function countKey(sessionId: string): string {
-  return `session:${sessionId}:count`;
+function documentsKey(sessionId: string): string {
+  return `session:${sessionId}:documents`;
 }
 
-function chunkKey(sessionId: string, index: number): string {
-  return `session:${sessionId}:chunk:${index}`;
+function documentIdsKey(sessionId: string): string {
+  return `session:${sessionId}:document-ids`;
+}
+
+function chunkIdsKey(sessionId: string, documentId: string): string {
+  return `session:${sessionId}:${documentId}:chunk-ids`;
+}
+
+export function redisChunkKey(sessionId: string, documentId: string, chunkId: string): string {
+  return `${sessionId}:${documentId}:${chunkId}`;
+}
+
+function batches<T>(items: T[]): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += KV_BATCH_SIZE) {
+    result.push(items.slice(index, index + KV_BATCH_SIZE));
+  }
+  return result;
+}
+
+async function readInBatches<T>(kv: Awaited<ReturnType<typeof kvClient>>, keys: string[]): Promise<Array<T | null>> {
+  const values: Array<T | null> = [];
+  for (const batch of batches(keys)) {
+    values.push(...(await kv.mget<T[]>(...batch)));
+  }
+  return values;
+}
+
+async function deleteInBatches(kv: Awaited<ReturnType<typeof kvClient>>, keys: string[]): Promise<void> {
+  for (const batch of batches(keys)) {
+    await kv.del(...batch);
+  }
 }
 
 export async function resetStore(sessionId: string): Promise<void> {
   if (hasKv()) {
     const kv = await kvClient();
-    const count = Number((await kv.get<number>(countKey(sessionId))) ?? 0);
-    const keys = [countKey(sessionId), ...Array.from({ length: count }, (_, i) => chunkKey(sessionId, i))];
-    if (keys.length) await kv.del(...keys);
+    const documentIds = (await kv.get<string[]>(documentIdsKey(sessionId))) ?? [];
+    const indexKeys = documentIds.map((documentId) => chunkIdsKey(sessionId, documentId));
+    const chunkIdLists = await readInBatches<string[]>(kv, indexKeys);
+    const chunkKeys = documentIds.flatMap((documentId, index) =>
+      (chunkIdLists[index] ?? []).map((chunkId) => redisChunkKey(sessionId, documentId, chunkId)),
+    );
+    await deleteInBatches(kv, [documentsKey(sessionId), documentIdsKey(sessionId), ...indexKeys, ...chunkKeys]);
     return;
   }
   memoryStore.delete(sessionId);
+  memoryDocuments.delete(sessionId);
 }
 
 export async function addChunks(sessionId: string, chunks: StoredChunk[]): Promise<void> {
+  if (chunks.length === 0) return;
+
   if (hasKv()) {
     const kv = await kvClient();
-    const start = Number((await kv.get<number>(countKey(sessionId))) ?? 0);
-
-    for (let i = 0; i < chunks.length; i += KV_BATCH_SIZE) {
-      const batch = chunks.slice(i, i + KV_BATCH_SIZE);
-      const pipeline = kv.pipeline();
-      batch.forEach((chunk, j) => pipeline.set(chunkKey(sessionId, start + i + j), chunk, { ex: SESSION_TTL_SECONDS }));
-      await pipeline.exec();
+    const grouped = new Map<string, StoredChunk[]>();
+    for (const chunk of chunks) {
+      const documentId = chunk.documentId ?? DEFAULT_DOCUMENT_ID;
+      grouped.set(documentId, [...(grouped.get(documentId) ?? []), chunk]);
     }
-    await kv.set(countKey(sessionId), start + chunks.length, { ex: SESSION_TTL_SECONDS });
+
+    const existingDocumentIds = (await kv.get<string[]>(documentIdsKey(sessionId))) ?? [];
+    const documentIds = Array.from(new Set([...existingDocumentIds, ...grouped.keys()]));
+
+    for (const [documentId, documentChunks] of grouped) {
+      const existingChunkIds = (await kv.get<string[]>(chunkIdsKey(sessionId, documentId))) ?? [];
+      const chunkIds = Array.from(new Set([...existingChunkIds, ...documentChunks.map((chunk) => chunk.id)]));
+
+      for (const batch of batches(documentChunks)) {
+        const pipeline = kv.pipeline();
+        for (const chunk of batch) {
+          pipeline.set(redisChunkKey(sessionId, documentId, chunk.id), chunk, { ex: SESSION_TTL_SECONDS });
+        }
+        await pipeline.exec();
+      }
+
+      await kv.set(chunkIdsKey(sessionId, documentId), chunkIds, { ex: SESSION_TTL_SECONDS });
+    }
+
+    await kv.set(documentIdsKey(sessionId), documentIds, { ex: SESSION_TTL_SECONDS });
     return;
   }
+
   memoryStore.set(sessionId, [...(memoryStore.get(sessionId) ?? []), ...chunks]);
+}
+
+export async function setSessionDocuments(sessionId: string, documents: SessionDocument[]): Promise<void> {
+  if (hasKv()) {
+    const kv = await kvClient();
+    await kv.set(documentsKey(sessionId), documents, { ex: SESSION_TTL_SECONDS });
+    return;
+  }
+  memoryDocuments.set(sessionId, documents);
+}
+
+export async function getSessionDocuments(sessionId: string): Promise<SessionDocument[]> {
+  if (hasKv()) {
+    const kv = await kvClient();
+    return (await kv.get<SessionDocument[]>(documentsKey(sessionId))) ?? [];
+  }
+  return memoryDocuments.get(sessionId) ?? [];
 }
 
 export async function getAllChunks(sessionId: string): Promise<StoredChunk[]> {
   if (hasKv()) {
     const kv = await kvClient();
-    const count = Number((await kv.get<number>(countKey(sessionId))) ?? 0);
-    if (count === 0) return [];
-    const keys = Array.from({ length: count }, (_, i) => chunkKey(sessionId, i));
+    const documentIds = (await kv.get<string[]>(documentIdsKey(sessionId))) ?? [];
+    if (documentIds.length === 0) return [];
 
-    const chunks: StoredChunk[] = [];
-    for (let i = 0; i < keys.length; i += KV_BATCH_SIZE) {
-      const batch = await kv.mget<StoredChunk[]>(...keys.slice(i, i + KV_BATCH_SIZE));
-      chunks.push(...batch.filter((c): c is StoredChunk => c !== null));
-    }
-    return chunks;
+    const indexKeys = documentIds.map((documentId) => chunkIdsKey(sessionId, documentId));
+    const chunkIdLists = await readInBatches<string[]>(kv, indexKeys);
+    const keys = documentIds.flatMap((documentId, index) =>
+      (chunkIdLists[index] ?? []).map((chunkId) => redisChunkKey(sessionId, documentId, chunkId)),
+    );
+    const chunks = await readInBatches<StoredChunk>(kv, keys);
+    return chunks.filter((chunk): chunk is StoredChunk => chunk !== null);
   }
+
   return memoryStore.get(sessionId) ?? [];
 }

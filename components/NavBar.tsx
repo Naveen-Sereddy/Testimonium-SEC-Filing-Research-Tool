@@ -24,6 +24,7 @@ export function NavBar({ onNewThread, onOpenHelp }: NavBarProps) {
         <button
           type="button"
           onClick={onNewThread}
+          aria-label="New analysis"
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 font-ui text-[13px] font-medium text-on transition-colors duration-150 hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <IconPlus className="h-3.5 w-3.5" aria-hidden="true" />

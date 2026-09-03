@@ -15,7 +15,8 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 
 ## What it does
 
-- Upload a 10-K PDF (or use the bundled demo filing)
+- Upload one or two SEC 10-K PDFs (or use the bundled demo filing)
+- Compare two annual filings year over year: section-level changes appear first, with expandable paragraph-level excerpts and citations for both years
 - Ask a question in plain language
 - Get an answer with a progressive text reveal (the complete response is fetched first, then revealed over ~550ms, not token-level streaming) and inline numbered citations `[1]` `[2]`
 - Click a citation to open a source drawer showing the exact excerpt, page number, and section, with a link that copies the excerpt to the clipboard so it can be found with ⌘F in the reader's own uploaded PDF
@@ -23,13 +24,13 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 - A "Why this answer" disclosure on every response states, in plain language, how many passages were retrieved, from which sections, and how many were strong matches, generated deterministically from the same retrieval numbers behind the confidence gauge, not a separate model call
 - 2-3 follow-up question chips after each answer, grounded in the citation's own section and the document's other indexed sections, not generic canned prompts
 - Citation depth (brief/standard/detailed), controlled from a pill row next to the composer, actually changes how many source chunks are retrieved per question (k = 3/5/8)
-- Retrieval is scoped to narrative sections only (MD&A, Risk Factors, Legal Proceedings), not financial tables. That's a stated v1 scope decision, not a gap: the hypothesis under test is retrieval speed on prose, not structured-data parsing. The document info bar shows exactly which of those sections got indexed after upload, alongside the company name and fiscal year end extracted from the filing's own cover page
+- Retrieval covers narrative sections (MD&A, Risk Factors, Legal Proceedings) and conservatively detected primary financial-statement table passages. Table passages retain a table title and inferred period columns so the answer and evidence panel can show where a value came from. The document info bar shows exactly which sections got indexed after upload, alongside the company name and fiscal year end extracted from each filing's cover page
 - A persistent evidence panel on desktop: click any citation anywhere in the conversation and it updates with the exact excerpt, page, and section, plus a link that opens the reader's own uploaded PDF straight to that page
 - Dark and light themes, full keyboard navigation, a focus-trapped help modal, 44px touch targets throughout, and WCAG 2.1 AA contrast
 
 ## Tech stack
 
-Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` for text extraction, Google Gemini's OpenAI-compatible API (via the `openai` SDK) with `gemini-embedding-001` for embeddings, an Upstash Redis session store for chunks and embeddings (deliberately not SQLite or a full vector DB, see Design Decisions), `gemini-flash-latest` for answer generation with a citation-and-refusal instruction baked into the prompt (pinned to the `-latest` alias after the dated model I originally built against, `gemini-2.5-flash`, was retired mid-project). Vitest for the backend's pure-logic layer. Deployed on Vercel, with CI wired through GitHub: a push to `main` builds and deploys automatically.
+Next.js 16 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` for text extraction, Google Gemini's OpenAI-compatible API (via the `openai` SDK) with `gemini-embedding-001` for embeddings, an Upstash Redis session store for chunks and embeddings, `gemini-flash-latest` for answer generation with a citation-and-refusal instruction baked into the prompt, and Vitest for the backend's pure-logic layer. Deployed on Vercel, with CI wired through GitHub: tests, the benchmark contract, and the production build must pass before a pull request can merge.
 
 ## Design decisions
 
@@ -39,7 +40,7 @@ Next.js 14 (App Router) + TypeScript + Tailwind CSS. RAG backend: `pdf-parse` fo
 
 **Session-scoped Redis, not a full vector DB.** The first version stored chunks and embeddings in a plain in-memory array. That worked in every manual test and then broke intermittently in real production use: Vercel runs multiple instances of the same function, and a query landing on a different instance than the upload found an empty store, since a module-level array only lives in one instance's memory. Every question got the same "I don't know" fallback regardless of what was actually asked, with no error thrown, just a quiet wrong answer. The fix was moving the store to Upstash Redis (via Vercel's Marketplace integration), keyed per upload session with a one-hour TTL, so any instance can serve any request for that session. `better-sqlite3` was still the wrong call, it's a native Node module Vercel's serverless build can't compile, but "no database" and "no cross-instance persistence" turned out to be two different requirements, and only the first one was ever the actual goal.
 
-**Narrative sections only.** Retrieval is filtered to MD&A, Risk Factors, and Legal Proceedings via heading detection, explicitly excluding financial tables and cross-filing comparison from v1. This surfaced a real bug during the build: naive heading detection false-positived on a filing's own Table of Contents page (which lists every heading together), silently mislabeling entire sections. Fixed by detecting ToC rows specifically (heading text followed by a dot-leader/page-number pattern) rather than counting bare heading mentions.
+**Conservative filing scope.** Retrieval is filtered to MD&A, Risk Factors, Legal Proceedings, and primary financial-statement table passages. Heading detection skips table-of-contents pages, and table extraction keeps source text plus inferred period columns rather than pretending a PDF parser has perfect visual-table fidelity. Cross-filing comparison uses the same stored chunks so every change remains traceable to both annual filings.
 
 **Confidence in the answer header, not a settings menu.** A thin gauge shows High/Medium/Low confidence based on retrieval score overlap, placed where trust evaluation actually happens, at the point of reading an answer. There's no settings panel at all, what used to be one is now an informational "How this works" panel (no controls, just context), since citation depth and theme are both controlled inline where they're used.
 
@@ -55,14 +56,14 @@ The throughline: reading class names and API docs isn't the same as verifying th
 
 ## Eval
 
-`npm run eval` runs a small golden set against the real deployed API: four in-scope questions that should get answered with citations, two out-of-scope questions that should get a clean refusal, plus a check that Citation Depth actually changes retrieval count (3/5/8). It hits production directly, no mocks. Last run:
+`npm run eval` first validates the 50-case benchmark contract, then runs a small smoke set against the real deployed API. The versioned contract lives in `eval/golden-set.json` and is validated in CI; it covers narrative retrieval, financial tables, Risk Factors and MD&amp;A comparison, and refusal behavior. The smoke set checks retrieval-section precision, citation page validity, refusals, and citation depth (3/5/8). It hits production directly, with no mocks. Last run:
 
 ```
 6/6 passed
 Citation Depth check: brief=3, standard=5, detailed=8 citations — PASS
 ```
 
-What this does and doesn't prove, stated plainly: it validates retrieval-and-refusal *behavior* (does an in-scope question get answered, does an out-of-scope one get refused, do citation pages fall in range) against one bundled document. It does not grade whether the generated prose is a *good* summary, that needs a human or LLM judge, not implemented here. And the confidence thresholds themselves (0.85 / 0.6 in `lib/rag.ts`) are still hand-picked, not statistically calibrated against this or any larger eval set. This is real evidence for the behaviors it checks, not a claim that the whole system is formally evaluated.
+What this does and doesn't prove, stated plainly: the smoke set validates retrieval-and-refusal behavior against one bundled document. The 50-case file is a structured benchmark contract and coverage checklist; it is not presented as a measured accuracy result until the five-company, multi-year corpus is populated and run. Confidence thresholds are now represented by an explicit profile and the repository includes a precision-target calibration function, but the default profile remains provisional until labeled examples are supplied. This is evidence for the behaviors actually checked, not a claim of formal model certification.
 
 ## Status
 
@@ -72,8 +73,8 @@ Getting from code-complete to actually staying up in production surfaced three r
 
 ## What I'd do with more time
 
-- Multi-document comparison with linked citation trails across filings
-- Table parsing for financial statements, with explicit user consent that an answer includes table-derived values
+- Expand the benchmark corpus beyond the checked-in contract and report measured retrieval, citation, and refusal metrics
+- Improve table extraction against more SEC filing layouts, with parser fixtures for merged cells and footnotes
 - A moderated test with analysts from a firm that didn't sponsor the build, to check the trust model holds with people who never watched it get made
 
 ## Getting started locally

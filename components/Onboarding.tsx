@@ -88,8 +88,8 @@ const SCREENS: Screen[] = [
     headline: 'Built for one document type, on purpose.',
     body: (
       <>
-        <p>Upload a 10-K PDF, up to 4MB. Testimonium indexes three narrative sections: MD&amp;A, Risk Factors, and Legal Proceedings.</p>
-        <p className="mt-3">Financial tables and other filing types aren&apos;t supported yet — keeping retrieval scoped to prose is what keeps every citation precise.</p>
+        <p>Upload one 10-K for research, or two annual filings for a year-over-year comparison. The combined upload must stay under 4MB.</p>
+        <p className="mt-3">Testimonium indexes MD&amp;A, Risk Factors, Legal Proceedings, and primary financial statements. Other filing types remain outside this release.</p>
       </>
     ),
   },
@@ -193,7 +193,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
             {index + 1} / {SCREENS.length} · {screen.eyebrow}
           </span>
 
-          <h2 ref={liveRegionRef} aria-live="polite" className="font-serif text-[24px] font-semibold leading-[30px] text-primary sm:text-[28px] sm:leading-[34px]">
+          <h2 ref={liveRegionRef} aria-live="polite" className="font-ui text-[24px] font-semibold leading-[30px] text-primary sm:text-[28px] sm:leading-[34px]">
             {screen.headline}
           </h2>
 
@@ -203,18 +203,22 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         </div>
 
         <div className="mt-8 flex items-center justify-between">
-          <div className="flex items-center gap-2" role="tablist" aria-label="Onboarding progress">
+          <div className="flex items-center gap-2" role="group" aria-label="Onboarding progress">
             {SCREENS.map((_, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => jumpTo(i)}
                 aria-label={`Go to screen ${i + 1} of ${SCREENS.length}`}
-                aria-current={i === index ? 'true' : undefined}
-                className={`h-2 rounded-full transition-all duration-150 hover:scale-110 ${
-                  i === index ? 'w-5 bg-accent' : 'w-2 bg-border-strong hover:bg-accent/60'
-                }`}
-              />
+                aria-pressed={i === index}
+                className="group inline-flex h-11 w-11 items-center justify-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <span
+                  className={`h-2 rounded-full transition-all duration-150 ${
+                    i === index ? 'w-5 bg-accent' : 'w-2 bg-border-strong group-hover:bg-accent/60'
+                  }`}
+                />
+              </button>
             ))}
           </div>
 

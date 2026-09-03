@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import type { Citation } from '@/lib/rag';
+import { splitAnswerOnCitations } from '@/lib/parseCitations';
 import { CitationChip } from './CitationChip';
 
-type BlockType = 'h1' | 'h2' | 'h3' | 'p' | 'ul' | 'ol';
+type BlockType = 'h1' | 'h2' | 'h3' | 'p' | 'ul' | 'ol' | 'table';
 interface Block {
   type: BlockType;
   items: string[];
@@ -30,8 +31,15 @@ function parseBlocks(text: string): Block[] {
     const h1 = /^#\s+(.*)/.exec(line);
     const ul = /^[-*]\s+(.*)/.exec(line);
     const ol = /^\d+\.\s+(.*)/.exec(line);
+    const table = /^\|(.+)\|$/.exec(line);
 
-    if (h3) {
+    if (table) {
+      if (!buffer || buffer.type !== 'table') {
+        flush();
+        buffer = { type: 'table', items: [] };
+      }
+      if (!/^\s*\|?(?:\s*:?-+:?\s*\|)+\s*$/.test(line)) buffer.items.push(line);
+    } else if (h3) {
       flush();
       blocks.push({ type: 'h3', items: [h3[1]] });
     } else if (h2) {
@@ -64,7 +72,7 @@ function parseBlocks(text: string): Block[] {
   return blocks;
 }
 
-const INLINE_RE = /\*\*(.+?)\*\*|`([^`]+)`|\[(\d+)\]/g;
+const INLINE_RE = /\*\*(.+?)\*\*|`([^`]+)`|(\[FY\s*\d{2,4}\s+p(?:age)?\.?\s*\d+\s*(?:->|→)\s*FY\s*\d{2,4}\s+p(?:age)?\.?\s*\d+\])|\[(\d+)\]/gi;
 
 function renderInline(
   text: string,
@@ -95,7 +103,32 @@ function renderInline(
         </code>,
       );
     } else if (match[3] !== undefined) {
-      const id = Number(match[3]);
+      const [segment] = splitAnswerOnCitations(match[3], Array.from(citationById.values()));
+      if (segment?.type === 'dual-citation') {
+        nodes.push(
+          <span key={`${keyPrefix}-dual-${idx}`} className="mx-1 inline-flex items-center gap-1 align-middle font-ui text-[11px]">
+            <button
+              type="button"
+              onClick={() => onCitationClick(segment.previousId)}
+              className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-overlay px-2 text-secondary hover:border-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {segment.previousLabel}
+            </button>
+            <span className="text-tertiary" aria-hidden="true">→</span>
+            <button
+              type="button"
+              onClick={() => onCitationClick(segment.currentId)}
+              className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-overlay px-2 text-secondary hover:border-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {segment.currentLabel}
+            </button>
+          </span>,
+        );
+      } else {
+        nodes.push(match[0]);
+      }
+    } else if (match[4] !== undefined) {
+      const id = Number(match[4]);
       const citation = citationById.get(id);
       if (citation) {
         nodes.push(
@@ -171,6 +204,26 @@ export function MarkdownAnswer({ text, citationById, activeCitationId, onCitatio
                 <li key={j}>{inline(item, `${key}-${j}`)}</li>
               ))}
             </ol>
+          );
+        }
+        if (block.type === 'table') {
+          const rows = block.items.map((row) => row.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()));
+          const [header, ...body] = rows;
+          return (
+            <div key={key} className="scroll-thin overflow-x-auto rounded-lg border border-border">
+              <table className="min-w-full border-collapse font-ui text-[13px] leading-[20px]">
+                <thead className="bg-hover text-left text-secondary">
+                  <tr>{header.map((cell, j) => <th key={j} className={`border-b border-border px-3 py-2 font-medium ${j > 0 ? 'text-right tabular-nums' : 'text-left'}`}>{inline(cell, `${key}-h-${j}`)}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {body.map((row, i) => (
+                    <tr key={i} className="border-b border-border last:border-b-0">
+                      {row.map((cell, j) => <td key={j} className={`px-3 py-2 align-top text-primary ${j > 0 ? 'whitespace-nowrap text-right tabular-nums' : 'text-left'}`}>{inline(cell, `${key}-${i}-${j}`)}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }
         return <p key={key}>{inline(block.items.join(' '), key)}</p>;

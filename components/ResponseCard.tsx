@@ -7,6 +7,7 @@ import { MarkdownAnswer } from './MarkdownAnswer';
 import { SourceDrawer } from './SourceDrawer';
 import { ConfidenceMeter } from './ConfidenceMeter';
 import { IconCopy, IconCheck, IconRefresh, IconFile, IconChevronDown } from './icons';
+import { copyText } from '@/lib/clipboard';
 
 export interface ResponseCardProps {
   answer: string;
@@ -18,6 +19,7 @@ export interface ResponseCardProps {
   onRegenerate: () => void;
   onEvidenceSelect?: (citation: Citation) => void;
   fileUrl?: string | null;
+  fileUrlForCitation?: (citation: Citation) => string | null;
   indexedSections?: string[];
   onFollowUp?: (question: string) => void;
 }
@@ -47,6 +49,7 @@ export function ResponseCard({
   onRegenerate,
   onEvidenceSelect,
   fileUrl,
+  fileUrlForCitation,
   indexedSections = [],
   onFollowUp,
 }: ResponseCardProps) {
@@ -74,20 +77,22 @@ export function ResponseCard({
     copyTimeoutRef.current = setTimeout(() => setCopied(null), 1600);
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(answer.replace(/\[\d+\]/g, '').trim());
-    onCopy();
-    flashCopied('plain');
+  const handleCopy = async () => {
+    if (await copyText(answer.replace(/\[\d+\]/g, '').trim())) {
+      onCopy();
+      flashCopied('plain');
+    }
   };
 
-  const handleCopyWithCitations = () => {
+  const handleCopyWithCitations = async () => {
     const sources = citations
       .map((c) => `[${c.id}] Page ${c.page}, ${c.section} — "${c.excerpt.trim()}"`)
       .join('\n');
     const text = sources ? `${answer.trim()}\n\nSources:\n${sources}` : answer.trim();
-    navigator.clipboard.writeText(text);
-    onCopy();
-    flashCopied('withCitations');
+    if (await copyText(text)) {
+      onCopy();
+      flashCopied('withCitations');
+    }
   };
 
   return (
@@ -135,7 +140,7 @@ export function ResponseCard({
       {activeCitation && (
         <SourceDrawer
           citation={activeCitation}
-          fileUrl={fileUrl}
+          fileUrl={fileUrlForCitation ? fileUrlForCitation(activeCitation) : fileUrl}
           onClose={() => {
             justClosedRef.current = { id: activeCitationId!, time: Date.now() };
             setActiveCitationId(null);
@@ -157,7 +162,7 @@ export function ResponseCard({
         <div className="mt-4 flex items-center gap-1 border-t border-border pt-3">
           <button
             type="button"
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             title={copied === 'plain' ? 'Copied' : 'Copy answer'}
             aria-label={copied === 'plain' ? 'Copied' : 'Copy answer'}
             className={`inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
@@ -169,7 +174,7 @@ export function ResponseCard({
           {citations.length > 0 && (
             <button
               type="button"
-              onClick={handleCopyWithCitations}
+              onClick={() => void handleCopyWithCitations()}
               title={copied === 'withCitations' ? 'Copied' : 'Copy answer with citations'}
               aria-label={copied === 'withCitations' ? 'Copied' : 'Copy answer with citations'}
               className={`inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
@@ -201,7 +206,7 @@ export function ResponseCard({
               key={q}
               type="button"
               onClick={() => onFollowUp(q)}
-              className="min-h-[36px] rounded-full border border-border bg-overlay px-3 font-ui text-[12.5px] text-secondary transition-colors duration-150 hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="min-h-[44px] rounded-full border border-border bg-overlay px-3 font-ui text-[12.5px] text-secondary transition-colors duration-150 hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               {q}
             </button>

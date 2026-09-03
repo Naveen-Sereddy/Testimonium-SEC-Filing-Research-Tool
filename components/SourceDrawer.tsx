@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Citation } from '@/lib/rag';
-import { IconFile } from './icons';
+import { IconCheck, IconCopy, IconFile } from './icons';
+import { copyText } from '@/lib/clipboard';
 
 export interface SourceDrawerProps {
   citation: Citation;
@@ -37,24 +38,41 @@ export function SourceDrawer({ citation, onClose, fileUrl }: SourceDrawerProps) 
     >
       <div className="flex items-center gap-2 font-ui text-[12px] font-medium text-secondary">
         <IconFile className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-        Page {citation.page} · {citation.section}
+        {citation.fileName ? `${citation.fileName} · ` : ''}{citation.filingYear ? `FY ${citation.filingYear} · ` : ''}Page {citation.page} · {citation.section}
       </div>
-      <p className="mt-2 font-serif text-[14px] leading-[22px] text-secondary">{citation.excerpt}</p>
-      {fileUrl && (
+      {citation.kind === 'table' && citation.table && (
+        <p className="mt-2 font-ui text-[11px] text-tertiary">
+          {citation.table.title} · columns: {citation.table.columns.join(', ')}{citation.table.unitScale ? ` · ${citation.table.unitScale}` : ''}
+        </p>
+      )}
+      <p className="mt-2 break-words font-serif text-[14px] leading-[22px] text-secondary">{citation.excerpt}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            void copyText(citation.excerpt).then((didCopy) => {
+              if (!didCopy) return;
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2200);
+            });
+          }}
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-border px-3 font-ui text-[12px] font-medium text-secondary hover:border-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          {copied ? <IconCheck className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied' : 'Copy excerpt'}
+        </button>
+        {fileUrl && (
         <a
           href={`${fileUrl}#page=${citation.page}`}
           target="_blank"
           rel="noopener"
-          onClick={() => {
-            navigator.clipboard.writeText(citation.excerpt);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2200);
-          }}
-          className="mt-2 inline-flex min-h-[44px] w-fit items-center rounded-lg px-2 -ml-2 font-ui text-[13px] font-medium text-accent transition-colors hover:text-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-border px-3 font-ui text-[12px] font-medium text-accent transition-colors hover:border-accent hover:text-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          {copied ? 'Excerpt copied — press ⌘F on that page to find it' : `Open page ${citation.page} in filing →`}
+          <IconFile className="h-3.5 w-3.5" />
+          Jump to page {citation.page}
         </a>
       )}
+      </div>
     </div>
   );
 }
