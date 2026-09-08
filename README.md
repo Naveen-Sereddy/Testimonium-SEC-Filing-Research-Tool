@@ -1,5 +1,7 @@
 # Testimonium
 
+[![Verify application](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool/actions/workflows/verify.yml/badge.svg?branch=master)](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool/actions/workflows/verify.yml)
+
 **Evidence-grade answers from SEC filings.**
 
 A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo as an outside engineer for an anonymized research workflow: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
@@ -8,6 +10,10 @@ A research tool for SEC 10-K filings: ask a question, get an answer grounded in 
 
 **Live demo:** [testimonium.vercel.app](https://testimonium.vercel.app)
 **Repo:** [github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool)
+
+**Project type:** Technical research prototype with a deployed demonstration.
+
+**Implemented here:** SEC filing upload, section-aware retrieval, cited answers, year-over-year comparison, evidence inspection, and the verification/evaluation tooling described below.
 
 ## The problem
 
@@ -72,6 +78,12 @@ What this does and doesn't prove, stated plainly: the smoke set validates retrie
 Live demo deployed. The checked-in verification report documents the current end-to-end pipeline against the bundled filing and records the deployment fixes made during launch. The smoke results above are limited to that evaluation; they are not a general accuracy or latency guarantee for other filings or users.
 
 Getting from code-complete to actually staying up in production surfaced three real bugs, unrelated to the RAG logic itself: a `DOMMatrix` polyfill needed for `pdf-parse` to run in Vercel's serverless Node runtime (fixed by ordering dynamic imports so the polyfill loads first), a PDF worker file whose runtime-computed path Vercel's dependency tracer couldn't follow (fixed with an explicit `outputFileTracingIncludes` entry), and the model retirement noted above. None of them showed up until the app was actually deployed and staying deployed.
+
+## Documentation
+
+- [Demo filing provenance](docs/demo-filing-provenance.md)
+- [Evaluation contract](eval/golden-set.json)
+- [Public case study](https://naveensereddy.com/case-testimonium/)
 
 ## What I'd do with more time
 
