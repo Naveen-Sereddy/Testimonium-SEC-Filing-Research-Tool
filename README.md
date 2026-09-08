@@ -2,7 +2,9 @@
 
 **Evidence-grade answers from SEC filings.**
 
-A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo, as an outside engineer, for a real asset-management research team under NDA: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
+A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo as an outside engineer for an anonymized research workflow: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
+
+**Publication boundary:** EXTERNAL BLOCKER — CLIENT/NDA PUBLICATION PERMISSION REQUIRED. Client identity and confidential engagement details are intentionally omitted; public release of the repository, deployment, and case-study material still requires separate confirmation.
 
 **Live demo:** [testimonium.vercel.app](https://testimonium.vercel.app)
 **Repo:** [github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool)
@@ -11,11 +13,11 @@ A research tool for SEC 10-K filings: ask a question, get an answer grounded in 
 
 Earnings season creates a recurring bottleneck: product managers and analysts need to locate specific disclosures inside 10-K filings (risk factor language, revenue segments, compliance statements), but the documents run 150–250 pages. Finding one specific disclosure takes 15–30 minutes of manual skimming. In fintech, I've seen this eat hours every earnings season.
 
-Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at an enterprise price point, and the team barely used the ones they already had. Testimonium was scoped and built for this specific team's actual workflow instead, not as a competitor to those platforms. Full engagement details (discovery, shadowing, verification session with real analysts) are in the [case study](https://naveensereddy.com/case-testimonium/); the client's name is withheld under NDA.
+Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at an enterprise price point. Testimonium was scoped for a focused research workflow instead of positioned as a competitor to those platforms. The public [case study](https://naveensereddy.com/case-testimonium/) omits client identity and confidential engagement details.
 
 ## What it does
 
-- Upload one or two SEC 10-K PDFs (or use the bundled demo filing)
+- Upload one or two SEC 10-K PDFs (or use the bundled demo filing; see the [provenance note](docs/demo-filing-provenance.md))
 - Compare two annual filings year over year: section-level changes appear first, with expandable paragraph-level excerpts and citations for both years
 - Ask a question in plain language
 - Get an answer with a progressive text reveal (the complete response is fetched first, then revealed over ~550ms, not token-level streaming) and inline numbered citations `[1]` `[2]`
@@ -56,10 +58,10 @@ The throughline: reading class names and API docs isn't the same as verifying th
 
 ## Eval
 
-`npm run eval` first validates the 50-case benchmark contract, then runs a small smoke set against the real deployed API. The versioned contract lives in `eval/golden-set.json` and is validated in CI; it covers narrative retrieval, financial tables, Risk Factors and MD&amp;A comparison, and refusal behavior. The smoke set checks retrieval-section precision, citation page validity, refusals, and citation depth (3/5/8). It hits production directly, with no mocks. Last run:
+`npm run eval` first validates the 50-case benchmark contract, then runs a small smoke set against the deployed API. The versioned contract lives in `eval/golden-set.json` and is validated in CI; it covers narrative retrieval, financial tables, Risk Factors and MD&amp;A comparison, and refusal behavior. The smoke set checks retrieval-section precision, citation page validity, refusals, and citation depth (3/5/8). It uses the bundled demo filing rather than a broad multi-company corpus. The last documented run was a six-query smoke evaluation:
 
 ```
-6/6 passed
+6/6 smoke cases passed
 Citation Depth check: brief=3, standard=5, detailed=8 citations — PASS
 ```
 
@@ -67,7 +69,7 @@ What this does and doesn't prove, stated plainly: the smoke set validates retrie
 
 ## Status
 
-Live in production. The full pipeline runs end to end against real uploads and real Gemini calls, verified with a closing session where analysts uploaded their own filings and checked answers against what they already knew: 100% citation accuracy, no false citations, sub-30-second time to first answer on pre-processed documents.
+Live demo deployed. The checked-in verification report documents the current end-to-end pipeline against the bundled filing and records the deployment fixes made during launch. The smoke results above are limited to that evaluation; they are not a general accuracy or latency guarantee for other filings or users.
 
 Getting from code-complete to actually staying up in production surfaced three real bugs, unrelated to the RAG logic itself: a `DOMMatrix` polyfill needed for `pdf-parse` to run in Vercel's serverless Node runtime (fixed by ordering dynamic imports so the polyfill loads first), a PDF worker file whose runtime-computed path Vercel's dependency tracer couldn't follow (fixed with an explicit `outputFileTracingIncludes` entry), and the model retirement noted above. None of them showed up until the app was actually deployed and staying deployed.
 
