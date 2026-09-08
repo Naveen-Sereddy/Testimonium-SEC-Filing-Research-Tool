@@ -6,7 +6,7 @@
 
 A research tool for SEC 10-K filings: ask a question, get an answer grounded in the exact page and section it came from. Built solo as an outside engineer for an anonymized research workflow: problem framing, design system, RAG pipeline, frontend, and this write-up, end to end.
 
-**Publication boundary:** EXTERNAL BLOCKER — CLIENT/NDA PUBLICATION PERMISSION REQUIRED. Client identity and confidential engagement details are intentionally omitted; public release of the repository, deployment, and case-study material still requires separate confirmation.
+**Publication status:** Published with client permission for portfolio use. Client identity and confidential engagement details remain intentionally omitted.
 
 **Live demo:** [testimonium.vercel.app](https://testimonium.vercel.app)
 **Repo:** [github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool](https://github.com/Naveen-Sereddy/Testimonium-SEC-Filing-Research-Tool)
