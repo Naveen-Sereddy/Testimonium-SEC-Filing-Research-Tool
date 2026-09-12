@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavBar } from '@/components/NavBar';
 import { Sidebar, type SidebarSession } from '@/components/Sidebar';
 import { UploadZone } from '@/components/UploadZone';
@@ -19,6 +19,9 @@ import type { QueryResult, Citation, UploadProgress } from '@/lib/rag';
 import type { SessionDocument } from '@/lib/store';
 import type { FilingComparison } from '@/lib/compare';
 
+const DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
+const UPLOAD_PART_BYTES = 3 * 1024 * 1024;
+
 interface Message extends QueryResult {
   id: string;
   question: string;
@@ -35,6 +38,15 @@ interface DocumentInfo {
   fiscalYearEnd: string | null;
   documents: SessionDocument[];
 }
+
+interface PersistedWorkspace {
+  version: 1;
+  document: DocumentInfo;
+  messages: Message[];
+}
+
+const WORKSPACE_STORAGE_KEY = 'testimonium-workspace-v1';
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 type DocState =
   | { status: 'idle' }
@@ -65,7 +77,51 @@ export default function Page() {
   const [uploadedFileUrls, setUploadedFileUrls] = useState<Record<string, string>>({});
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const queryAbortRef = useRef<AbortController | null>(null);
+  const runQueryRef = useRef<((question: string, replaceId?: string) => Promise<void>) | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [exportStatus, setExportStatus] = useState<'idle' | 'complete' | 'error'>('idle');
+  const restoredWorkspaceRef = useRef(false);
+  const queuedExampleQuestionRef = useRef<string | null>(null);
+
+  // A citation opens the user's PDF in another tab. The application itself
+  // can be re-mounted when they return, so preserve the lightweight workspace
+  // descriptor and transcript locally. The indexed chunks remain on the
+  // server under sessionId; File objects deliberately are not persisted.
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
+      if (!stored) return;
+      const workspace = JSON.parse(stored) as PersistedWorkspace;
+      if (
+        workspace.version === 1
+        && typeof workspace.document?.sessionId === 'string'
+        && Array.isArray(workspace.messages)
+      ) {
+        setDocState({ status: 'ready', ...workspace.document });
+        setMessages(workspace.messages);
+      }
+    } catch {
+      window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    } finally {
+      restoredWorkspaceRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!restoredWorkspaceRef.current || docState.status !== 'ready') return;
+    const document: DocumentInfo = {
+      fileName: docState.fileName,
+      pageCount: docState.pageCount,
+      chunkCount: docState.chunkCount,
+      sessionId: docState.sessionId,
+      indexedSections: docState.indexedSections,
+      company: docState.company,
+      fiscalYearEnd: docState.fiscalYearEnd,
+      documents: docState.documents,
+    };
+    const workspace: PersistedWorkspace = { version: 1, document, messages };
+    window.sessionStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
+  }, [docState, messages]);
 
   // Kept client-side only (never uploaded anywhere beyond the parse request)
   // so the Evidence panel can deep-link into the user's own file, real
@@ -131,14 +187,57 @@ export default function Page() {
 
   const handleFilesSelected = async (files: File[]) => {
     if (files.length === 0) return;
+    const totalSize = files.reduce((total, file) => total + file.size, 0);
+    if (totalSize > MAX_UPLOAD_BYTES) {
+      setDocState({ status: 'error', message: `The selected files total ${(totalSize / 1024 / 1024).toFixed(1)}MB, which exceeds the 50MB combined upload limit.` });
+      return;
+    }
+    window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
     setDocState({ status: 'uploading', progress: { stage: 'Extracting text', completed: 0, total: files.length } });
     setUploadedFiles(files);
     setUploadedFile(files[0]);
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-
     try {
-      const res = await fetch('/api/upload', { method: 'POST', headers: { Accept: 'text/event-stream' }, body: formData });
+      let res: Response;
+      if (totalSize > DIRECT_UPLOAD_BYTES) {
+        const uploads: Array<{ uploadId: string; fileName: string; contentType: string; size: number; totalParts: number }> = [];
+        let completedParts = 0;
+        const partTotal = files.reduce((total, file) => total + Math.ceil(file.size / UPLOAD_PART_BYTES), 0);
+        for (const file of files) {
+          const uploadId = crypto.randomUUID();
+          const totalParts = Math.ceil(file.size / UPLOAD_PART_BYTES);
+          const descriptor = { uploadId, fileName: file.name, contentType: file.type, size: file.size, totalParts };
+          for (let index = 0; index < totalParts; index += 1) {
+            setDocState({ status: 'uploading', progress: { stage: 'Uploading', completed: completedParts, total: partTotal } });
+            const part = new File([file.slice(index * UPLOAD_PART_BYTES, Math.min(file.size, (index + 1) * UPLOAD_PART_BYTES))], file.name, { type: file.type });
+            const partData = new FormData();
+            Object.entries({ ...descriptor, index: String(index) }).forEach(([key, value]) => partData.append(key, String(value)));
+            partData.append('part', part);
+            const partResponse = await fetch('/api/upload/part', { method: 'POST', body: partData });
+            if (!partResponse.ok) {
+              const body = await partResponse.json().catch(() => ({})) as { error?: string };
+              throw new Error(body.error ?? `Could not upload part ${index + 1} of ${totalParts}.`);
+            }
+            completedParts += 1;
+            setDocState({ status: 'uploading', progress: { stage: 'Uploading', completed: completedParts, total: partTotal } });
+          }
+          uploads.push(descriptor);
+        }
+        res = await fetch('/api/upload/complete', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' }, body: JSON.stringify({ uploads }) });
+      } else {
+        const formData = new FormData();
+        files.forEach((file) => formData.append('files', file));
+        res = await fetch('/api/upload', { method: 'POST', headers: { Accept: 'text/event-stream' }, body: formData });
+      }
+      if (!res.ok) {
+        let message = 'Upload failed. Please try again.';
+        try {
+          const body = await res.json() as { error?: string };
+          message = body.error ?? message;
+        } catch {
+          if (res.status === 413) message = 'This upload was rejected before processing. The combined file size must be 50MB or less.';
+        }
+        throw new Error(message);
+      }
       if (!res.body) throw new Error('Upload progress was unavailable. Please try again.');
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -164,8 +263,8 @@ export default function Page() {
         if (done) break;
       }
       if (!completed) throw new Error('Upload ended before indexing completed. Please try again.');
-    } catch {
-      setDocState({ status: 'error', message: 'Network error — please try again.' });
+    } catch (error) {
+      setDocState({ status: 'error', message: error instanceof Error ? error.message : 'Network error — please try again.' });
     }
   };
 
@@ -175,13 +274,13 @@ export default function Page() {
     try {
       const response = await fetch('/demo/sample-10k.pdf');
       if (!response.ok) throw new Error('Sample filing could not be loaded.');
-      handleFileSelected(new File([await response.blob()], 'Testimonium sample 10-K.pdf', { type: 'application/pdf' }));
+      await handleFilesSelected([new File([await response.blob()], 'Testimonium sample 10-K.pdf', { type: 'application/pdf' })]);
     } catch (error) {
       setDocState({ status: 'error', message: error instanceof Error ? error.message : 'Sample filing could not be loaded.' });
     }
   };
 
-  const runQuery = async (question: string, replaceId?: string) => {
+  const runQuery = useCallback(async (question: string, replaceId?: string) => {
     if (docState.status !== 'ready') return;
     const { sessionId } = docState;
 
@@ -243,6 +342,24 @@ export default function Page() {
       setStreamingAnswer('');
       queryAbortRef.current = null;
     }
+  }, [citationDepth, docState, messages]);
+  useEffect(() => {
+    runQueryRef.current = runQuery;
+  }, [runQuery]);
+
+  // Landing-page examples are actionable: load the public sample and then
+  // ask the selected question as soon as indexing has actually completed.
+  useEffect(() => {
+    if (docState.status !== 'ready' || !queuedExampleQuestionRef.current) return;
+    const question = queuedExampleQuestionRef.current;
+    queuedExampleQuestionRef.current = null;
+    void runQueryRef.current?.(question);
+  }, [docState]);
+
+  const handleExampleQuestion = (question: string) => {
+    queuedExampleQuestionRef.current = question;
+    setInputValue(question);
+    void handleSample();
   };
 
   const resetToIdle = () => {
@@ -266,6 +383,8 @@ export default function Page() {
     setUploadedFiles([]);
     setComparison(null);
     setComparisonError(null);
+    queuedExampleQuestionRef.current = null;
+    window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
   };
 
   const requestNewAnalysis = () => {
@@ -276,12 +395,25 @@ export default function Page() {
 
   const exportConversation = () => {
     if (messages.length === 0) return;
-    const transcript = messages.map((message) => {
-      const sources = message.citations.map((citation) => `- [${citation.id}] Page ${citation.page}, ${citation.section}: ${citation.excerpt}`).join('\n');
-      return `## Q: ${message.question}\n\n${message.answer}\n\n### Sources\n${sources || 'No cited sources.'}`;
-    }).join('\n\n---\n\n');
-    const url = URL.createObjectURL(new Blob([`# Testimonium conversation\n\n${transcript}\n`], { type: 'text/markdown' }));
-    const link = document.createElement('a'); link.href = url; link.download = 'testimonium-conversation.md'; link.click(); URL.revokeObjectURL(url);
+    try {
+      const transcript = messages.map((message) => {
+        const sources = message.citations.map((citation) => `- [${citation.id}] Page ${citation.page}, ${citation.section}: ${citation.excerpt}`).join('\n');
+        return `## Q: ${message.question}\n\n${message.answer}\n\n### Sources\n${sources || 'No cited sources.'}`;
+      }).join('\n\n---\n\n');
+      const url = URL.createObjectURL(new Blob([`# Testimonium conversation\n\n${transcript}\n`], { type: 'text/markdown' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'testimonium-conversation.md';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      setExportStatus('complete');
+      window.setTimeout(() => setExportStatus('idle'), 2_500);
+    } catch {
+      setExportStatus('error');
+    }
   };
 
   const runComparison = async () => {
@@ -312,7 +444,7 @@ export default function Page() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base">
-      <NavBar onNewThread={requestNewAnalysis} onOpenHelp={() => setSettingsOpen(true)} onExport={messages.length > 0 ? exportConversation : undefined} />
+      <NavBar onNewThread={requestNewAnalysis} onOpenHelp={() => setSettingsOpen(true)} onExport={messages.length > 0 ? exportConversation : undefined} exportStatus={exportStatus} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -358,9 +490,9 @@ export default function Page() {
           )}
 
           <div ref={scrollContainerRef} className="scroll-thin flex-1 overflow-y-auto scroll-smooth px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto flex w-full max-w-[820px] flex-col gap-6 py-6">
+            <div className="mx-auto flex min-h-full w-full max-w-[820px] flex-col gap-6 py-6">
               {docState.status !== 'ready' && (
-                <div className="flex flex-1 items-center justify-center py-10">
+                <div className="flex min-h-full flex-1 items-center justify-center py-10">
                   <UploadZone
                     status={
                       docState.status === 'idle'
@@ -378,6 +510,7 @@ export default function Page() {
                     onFileSelected={handleFileSelected}
                     onFilesSelected={handleFilesSelected}
                     onSample={handleSample}
+                    onExampleQuestion={handleExampleQuestion}
                     uploadInputRef={uploadInputRef}
                     onRetry={() => setDocState({ status: 'idle' })}
                   />
@@ -385,7 +518,7 @@ export default function Page() {
               )}
 
               {docState.status === 'ready' && messages.length === 0 && !pendingQuestion && (
-                <EmptyState onSuggestionClick={(text) => setInputValue(text)} />
+                <EmptyState onSuggestionClick={runQuery} />
               )}
 
               {messages.map((m) => (
@@ -411,7 +544,7 @@ export default function Page() {
                       fileUrl={uploadedFileUrls['filing-1'] ?? null}
                       fileUrlForCitation={fileUrlForCitation}
                       indexedSections={docState.status === 'ready' ? docState.indexedSections : []}
-                      onFollowUp={setInputValue}
+                      onFollowUp={runQuery}
                       question={m.question}
                     />
                   )}

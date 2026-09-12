@@ -29,12 +29,15 @@ export interface ResponseCardProps {
 // pipeline has no conversation history, see lib/chat.ts buildPrompt), so
 // every suggestion must be self-contained — no "this"/"the answer above".
 // Grounded in the document's own indexed sections, never generic canned text.
-function followUpSuggestions(question: string, citations: Citation[], indexedSections: string[]): string[] {
+export function followUpSuggestions(question: string, citations: Citation[], indexedSections: string[]): string[] {
   if (citations.length === 0) return [];
-  const topic = question.replace(/^(?:what|how|why|when|where|which|can|did|does|is|are)\s+/i, '').replace(/[?!.]+$/, '').trim();
+  const topic = question
+    .replace(/^(?:what\s+(?:was|were|is|are)|how\s+(?:did|does|do)|why\s+(?:did|does)|when\s+(?:did|does)|where\s+(?:did|does)|which|can|did|does|is|are|summarize|compare)\s+/i, '')
+    .replace(/[?!.]+$/, '')
+    .trim();
   const answerSection = citations[0].section;
   return [
-    `How did ${topic} change in the prior year?`,
+        `How did ${topic} change from the prior year?`,
     `What factors in ${answerSection} explain ${topic}?`,
     ...indexedSections.filter((section) => section !== answerSection).slice(0, 1).map((section) => `What does ${section} say about ${topic}?`),
   ];
@@ -224,9 +227,9 @@ export function PendingResponseCard({ onCancel, text = '' }: { onCancel?: () => 
     <div className="w-full rounded-2xl border border-border bg-raised p-5 shadow-[0_1px_2px_rgba(0,0,0,0.18)] sm:p-6" aria-live="polite" aria-label="Generating answer">
       <div className="flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-        <span className="font-ui text-[12px] font-medium uppercase tracking-[0.04em] text-tertiary">Thinking</span>
+        <span className="font-ui text-[12px] font-medium uppercase tracking-[0.04em] text-tertiary">Writing answer</span>
       </div>
-      {text ? <p className="mt-4 whitespace-pre-wrap font-serif text-[16px] leading-[27px] text-primary">{text}</p> : <div className="mt-4 flex gap-1.5" aria-hidden="true">
+      {text ? <p className="mt-4 whitespace-pre-wrap font-serif text-[16px] leading-[27px] text-primary">{text}<span className="ml-0.5 inline-block h-[1em] w-0.5 animate-pulse bg-accent align-[-0.12em]" aria-label="Answer is still streaming" /></p> : <div className="mt-4 flex gap-1.5" aria-hidden="true">
         <span className="h-1.5 w-1.5 rounded-full bg-tertiary" style={{ animation: 'dotPulse 1.1s ease-in-out infinite' }} />
         <span
           className="h-1.5 w-1.5 rounded-full bg-tertiary"

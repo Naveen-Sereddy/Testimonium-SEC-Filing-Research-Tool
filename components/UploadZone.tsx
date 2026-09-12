@@ -10,7 +10,8 @@ export interface UploadZoneProps {
   onFilesSelected?: (files: File[]) => void;
   onRetry?: () => void;
   onSample?: () => void;
-  progress?: { stage: 'Extracting text' | 'Chunking' | 'Indexing'; completed: number; total: number };
+  onExampleQuestion?: (question: string) => void;
+  progress?: { stage: 'Uploading' | 'Extracting text' | 'Chunking' | 'Indexing'; completed: number; total: number };
   uploadInputRef?: MutableRefObject<HTMLInputElement | null>;
 }
 
@@ -23,8 +24,13 @@ export interface UploadZoneProps {
 const EARLY_STAGES = ['Reading PDF…', 'Finding supported sections…'];
 const FINAL_STAGE = 'Indexing…';
 const EARLY_STAGE_MS = 700;
+const LANDING_SUGGESTIONS = [
+  'What are the top risk factors?',
+  'Summarize the MD&A section',
+  'What are total revenues by year?',
+];
 
-export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelected, onRetry, onSample, progress, uploadInputRef }: UploadZoneProps) {
+export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelected, onRetry, onSample, onExampleQuestion, progress, uploadInputRef }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
@@ -40,7 +46,7 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
   }, [status, stageIndex]);
 
   const stageLabel = progress
-    ? `${progress.stage} · ${progress.completed}/${progress.total}${progress.stage === 'Indexing' ? ' chunks' : ' files'}`
+    ? `${progress.stage} · ${progress.completed}/${progress.total}${progress.stage === 'Indexing' ? ' chunks' : progress.stage === 'Uploading' ? ' parts' : ' files'}`
     : stageIndex < EARLY_STAGES.length ? EARLY_STAGES[stageIndex] : FINAL_STAGE;
 
   const showDragState = isDragOver || status === 'dragover';
@@ -159,6 +165,13 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
               Try a sample 10-K
             </button>
           )}
+          <div className="mt-2 flex flex-wrap justify-center gap-2" aria-label="Example questions">
+            {LANDING_SUGGESTIONS.map((question) => (
+              <button key={question} type="button" onClick={(event) => { event.stopPropagation(); onExampleQuestion?.(question); }} className="min-h-[40px] rounded-full border border-border bg-overlay px-3 font-ui text-[12px] text-secondary transition-colors hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                {question}
+              </button>
+            ))}
+          </div>
         </>
       )}
     </div>

@@ -84,9 +84,13 @@ export function EvidencePanel({ citation, fileName, fileUrl, fileUrlForCitation 
 }
 
 function HighlightedExcerpt({ text, highlights }: { text: string; highlights: string[] }) {
-  if (highlights.length === 0) return <p className="break-words font-serif text-[15px] leading-[24px] text-primary">{text}</p>;
+  const tableLike = /\t|(?:^|\n)\s*(?:years? ended|as of|\(\$\s*in\s+(?:thousands|millions|billions))/im.test(text);
+  const className = tableLike
+    ? 'overflow-x-auto whitespace-pre-wrap rounded-lg border border-border bg-overlay p-3 font-mono text-[11px] leading-5 text-primary'
+    : 'break-words font-serif text-[15px] leading-[24px] text-primary';
+  if (highlights.length === 0) return <p className={className}>{text}</p>;
   const matcher = new RegExp(`(${highlights.map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-  return <p className="break-words font-serif text-[15px] leading-[24px] text-primary">{text.split(matcher).map((part, index) => highlights.some((value) => value.toLowerCase() === part.toLowerCase()) ? <mark key={index} className="rounded bg-accent-muted px-0.5 text-primary">{part}</mark> : part)}</p>;
+  return <p className={className}>{text.split(matcher).map((part, index) => highlights.some((value) => value.toLowerCase() === part.toLowerCase()) ? <mark key={index} className="rounded bg-accent-muted px-0.5 text-primary">{part}</mark> : part)}</p>;
 }
 
 function isHighlighted(value: string, highlights: string[]) {

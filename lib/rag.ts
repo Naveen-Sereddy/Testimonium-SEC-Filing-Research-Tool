@@ -31,7 +31,7 @@ export interface UploadInput {
 }
 
 export interface UploadProgress {
-  stage: 'Extracting text' | 'Chunking' | 'Indexing';
+  stage: 'Uploading' | 'Extracting text' | 'Chunking' | 'Indexing';
   completed: number;
   total: number;
 }
