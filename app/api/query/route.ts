@@ -49,11 +49,20 @@ export async function POST(req: NextRequest) {
       const stream = new ReadableStream({
         async start(controller) {
           const send = (payload: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          const sendToken = async (token: string) => {
+            // Providers occasionally send a whole sentence in one delta. Break
+            // that delta into short, already-generated pieces so the response
+            // remains visibly live instead of jumping from dots to a card.
+            for (let start = 0; start < token.length; start += 24) {
+              send({ type: 'token', token: token.slice(start, start + 24) });
+              if (start + 24 < token.length) await new Promise((resolve) => setTimeout(resolve, 18));
+            }
+          };
           // Flush an SSE frame immediately. This prevents proxy buffering from
           // hiding token events until the model has completed its answer.
           controller.enqueue(encoder.encode(': connected\n\n'));
           try {
-            const result = await answerQuestion(sessionId, question, k, history, (token) => send({ type: 'token', token }));
+            const result = await answerQuestion(sessionId, question, k, history, sendToken);
             send({ type: 'complete', result });
           } catch (error) {
             console.error('Query processing failed:', error);

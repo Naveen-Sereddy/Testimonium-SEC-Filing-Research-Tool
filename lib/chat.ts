@@ -62,7 +62,7 @@ export async function askModel(question: string, context: ContextChunk[], conver
 }
 
 /** Stream model text to the client while retaining the complete answer for citation validation. */
-export async function askModelStream(question: string, context: ContextChunk[], onToken: (token: string) => void, conversationReference?: string): Promise<string> {
+export async function askModelStream(question: string, context: ContextChunk[], onToken: (token: string) => void | Promise<void>, conversationReference?: string): Promise<string> {
   const prompt = buildPrompt(question, context, conversationReference);
   const stream = await getClient().chat.completions.create({
     model: 'gemini-flash-latest',
@@ -73,7 +73,7 @@ export async function askModelStream(question: string, context: ContextChunk[], 
   let answer = '';
   for await (const chunk of stream) {
     const token = chunk.choices[0]?.delta?.content ?? '';
-    if (token) { answer += token; onToken(token); }
+    if (token) { answer += token; await onToken(token); }
   }
   return answer || FALLBACK;
 }
