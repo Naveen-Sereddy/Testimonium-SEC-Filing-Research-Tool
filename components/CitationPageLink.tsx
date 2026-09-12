@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { citationPageUrl, openCitationInNewTab } from '@/lib/citationLink';
+import { citationPageUrl } from '@/lib/citationLink';
 import { IconFile } from './icons';
 
 export function CitationPageLink({ sourceUrl, page }: { sourceUrl: string | null; page: number }) {
@@ -15,7 +15,7 @@ export function CitationPageLink({ sourceUrl, page }: { sourceUrl: string | null
   if (sourceUrl) {
     const url = citationPageUrl(sourceUrl, page);
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" onClick={(event) => openCitationInNewTab(event, url)} className={className}>
+      <a href={url} target="_blank" rel="noopener noreferrer" className={className}>
         <IconFile className="h-3.5 w-3.5" />
         {label}
       </a>

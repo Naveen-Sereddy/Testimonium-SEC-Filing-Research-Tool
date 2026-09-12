@@ -78,6 +78,7 @@ export default function Page() {
   const { showOnboarding, complete: completeOnboarding, replay: replayOnboarding } = useOnboarding();
   const [uploadedFileUrls, setUploadedFileUrls] = useState<Record<string, string>>({});
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const tourUploadInputRef = useRef<HTMLInputElement>(null);
   const queryAbortRef = useRef<AbortController | null>(null);
   const runQueryRef = useRef<((question: string, replaceId?: string) => Promise<void>) | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
@@ -654,8 +655,25 @@ export default function Page() {
         }}
       />
 
+      {/* This picker stays mounted even while a ready document replaces the
+          landing upload zone. The tour can therefore open it reliably when
+          replayed from the help panel. */}
+      <input
+        ref={tourUploadInputRef}
+        type="file"
+        accept="application/pdf"
+        multiple
+        tabIndex={-1}
+        className="sr-only"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []).filter((file) => file.type === 'application/pdf').slice(0, 2);
+          event.target.value = '';
+          void handleFilesSelected(files);
+        }}
+      />
+
       {showOnboarding && <Onboarding onComplete={completeOnboarding} onUpload={() => {
-        const input = uploadInputRef.current;
+        const input = tourUploadInputRef.current;
         if (!input) return false;
         // Selecting the same filing after an error should still emit change.
         input.value = '';
