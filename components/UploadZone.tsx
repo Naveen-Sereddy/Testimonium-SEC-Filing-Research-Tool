@@ -173,7 +173,7 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
               onClick={(event) => event.stopPropagation()}
               className="inline-flex min-h-[44px] items-center rounded-full border border-border px-3.5 font-ui text-[13px] font-medium text-secondary transition-colors hover:border-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              Watch 90-sec demo
+              Watch demo
             </a>
           </div>
           <div className="mt-2 flex flex-wrap justify-center gap-2" aria-label="Example questions">
