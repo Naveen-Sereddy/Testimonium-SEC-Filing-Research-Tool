@@ -1,5 +1,8 @@
 const PART_TTL_SECONDS = 10 * 60;
 export const UPLOAD_PART_BYTES = 3 * 1024 * 1024;
+// A 3MB binary part becomes about 4MB when base64 encoded. Upstash limits a
+// single response to 10MB, so never mget more than two pending parts at once.
+const PART_READ_BATCH_SIZE = 2;
 
 export class PendingUploadError extends Error {}
 
@@ -70,7 +73,11 @@ export async function consumeUploadParts(descriptor: UploadPartDescriptor): Prom
   if (hasKv()) {
     const kv = await kvClient();
     metadata = await kv.get<StoredPartUpload>(metadataKey(descriptor.uploadId)) ?? undefined;
-    encodedParts = await kv.mget<string[]>(...Array.from({ length: descriptor.totalParts }, (_, index) => partKey(descriptor.uploadId, index)));
+    const keys = Array.from({ length: descriptor.totalParts }, (_, index) => partKey(descriptor.uploadId, index));
+    encodedParts = [];
+    for (let start = 0; start < keys.length; start += PART_READ_BATCH_SIZE) {
+      encodedParts.push(...await kv.mget<string[]>(...keys.slice(start, start + PART_READ_BATCH_SIZE)));
+    }
   } else {
     metadata = memoryMetadata.get(descriptor.uploadId);
     encodedParts = Array.from({ length: descriptor.totalParts }, (_, index) => memoryParts.get(partKey(descriptor.uploadId, index)) ?? null);
