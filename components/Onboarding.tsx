@@ -9,6 +9,7 @@ import type { Confidence } from '@/lib/rag';
 
 export interface OnboardingProps {
   onComplete: () => void;
+  onUpload: () => void;
 }
 
 interface Screen {
@@ -88,7 +89,7 @@ const SCREENS: Screen[] = [
     headline: 'Built for one document type, on purpose.',
     body: (
       <>
-        <p>Upload one 10-K for research, or two annual filings for a year-over-year comparison. The combined upload must stay under 4MB.</p>
+        <p>Upload one 10-K for research, or two annual filings for a year-over-year comparison. The combined upload can be up to 50MB.</p>
         <p className="mt-3">Testimonium indexes MD&amp;A, Risk Factors, Legal Proceedings, and primary financial statements. Other filing types remain outside this release.</p>
       </>
     ),
@@ -122,7 +123,7 @@ const SCREENS: Screen[] = [
   },
 ];
 
-export function Onboarding({ onComplete }: OnboardingProps) {
+export function Onboarding({ onComplete, onUpload }: OnboardingProps) {
   const [index, setIndex] = useState(0);
   const containerRef = useFocusTrap<HTMLDivElement>(true);
   const liveRegionRef = useRef<HTMLHeadingElement>(null);
@@ -132,6 +133,9 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   const goNext = () => {
     if (isLast) {
+      // Keep this inside the button's user activation. Browsers are allowed
+      // to block a file-picker click once it crosses an async boundary.
+      onUpload();
       onComplete();
       return;
     }
@@ -155,6 +159,10 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  useEffect(() => {
+    liveRegionRef.current?.focus();
   }, [index]);
 
   return (
@@ -193,7 +201,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
             {index + 1} / {SCREENS.length} · {screen.eyebrow}
           </span>
 
-          <h2 ref={liveRegionRef} aria-live="polite" className="font-ui text-[24px] font-semibold leading-[30px] text-primary sm:text-[28px] sm:leading-[34px]">
+          <h2 ref={liveRegionRef} tabIndex={-1} aria-live="polite" className="font-ui text-[24px] font-semibold leading-[30px] text-primary outline-none sm:text-[28px] sm:leading-[34px]">
             {screen.headline}
           </h2>
 

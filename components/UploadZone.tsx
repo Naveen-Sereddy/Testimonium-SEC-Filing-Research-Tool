@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { IconUpload, IconCheck, IconAlert } from './icons';
 
 export interface UploadZoneProps {
@@ -9,6 +9,9 @@ export interface UploadZoneProps {
   onFileSelected: (file: File) => void;
   onFilesSelected?: (files: File[]) => void;
   onRetry?: () => void;
+  onSample?: () => void;
+  progress?: { stage: 'Extracting text' | 'Chunking' | 'Indexing'; completed: number; total: number };
+  uploadInputRef?: MutableRefObject<HTMLInputElement | null>;
 }
 
 // The two early stages are genuinely fast (parsing and section-detection are
@@ -21,8 +24,8 @@ const EARLY_STAGES = ['Reading PDF…', 'Finding supported sections…'];
 const FINAL_STAGE = 'Indexing…';
 const EARLY_STAGE_MS = 700;
 
-export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelected, onRetry }: UploadZoneProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelected, onRetry, onSample, progress, uploadInputRef }: UploadZoneProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
 
@@ -36,7 +39,9 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
     return () => clearTimeout(timer);
   }, [status, stageIndex]);
 
-  const stageLabel = stageIndex < EARLY_STAGES.length ? EARLY_STAGES[stageIndex] : FINAL_STAGE;
+  const stageLabel = progress
+    ? `${progress.stage} · ${progress.completed}/${progress.total}${progress.stage === 'Indexing' ? ' chunks' : ' files'}`
+    : stageIndex < EARLY_STAGES.length ? EARLY_STAGES[stageIndex] : FINAL_STAGE;
 
   const showDragState = isDragOver || status === 'dragover';
   const borderClass = showDragState ? 'border-accent bg-accent-muted' : 'border-border hover:border-border-strong';
@@ -45,7 +50,7 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
     <div
       role="button"
       tabIndex={0}
-      aria-label="Upload PDF by dropping file here or using the file picker"
+      aria-label="Drop one or two SEC 10-K PDFs here, or click to browse"
       onClick={() => inputRef.current?.click()}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
@@ -62,10 +67,13 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
         if (files.length > 1 && onFilesSelected) onFilesSelected(files);
         else if (files[0]) onFileSelected(files[0]);
       }}
-      className={`mx-auto flex w-full max-w-[520px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:p-14 ${borderClass}`}
+      className={`mx-auto flex w-full max-w-[520px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-14 ${borderClass}`}
     >
       <input
-        ref={inputRef}
+        ref={(node) => {
+          inputRef.current = node;
+          if (uploadInputRef) uploadInputRef.current = node;
+        }}
         type="file"
         accept="application/pdf"
         multiple
@@ -97,6 +105,11 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
               style={{ animation: 'dotPulse 1.1s ease-in-out infinite', animationDelay: '0.3s' }}
             />
           </div>
+          {progress && (
+            <div className="h-1 w-full max-w-[220px] overflow-hidden rounded-full bg-hover" aria-hidden="true">
+              <div className="h-full rounded-full bg-accent transition-all duration-200" style={{ width: `${Math.max(5, (progress.completed / Math.max(1, progress.total)) * 100)}%` }} />
+            </div>
+          )}
         </>
       ) : status === 'success' ? (
         <>
@@ -135,8 +148,17 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
           </div>
           <p className="font-ui text-[15px] leading-[22px] text-secondary">Drop one or two SEC 10-K PDFs here, or click to browse</p>
           <p id="upload-help" className="font-ui text-[12px] text-tertiary">
-            Compare annual filings year over year · 4MB combined upload limit
+            Compare annual filings year over year · 50MB combined upload limit
           </p>
+          {onSample && (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onSample(); }}
+              className="min-h-[44px] rounded-full border border-accent px-3.5 font-ui text-[13px] font-medium text-accent transition-colors hover:bg-accent-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              Try a sample 10-K
+            </button>
+          )}
         </>
       )}
     </div>

@@ -26,11 +26,11 @@ Existing tools (Bloomberg, AlphaSense, Hebbia) are built for research desks at a
 - Upload one or two SEC 10-K PDFs (or use the bundled demo filing; see the [provenance note](docs/demo-filing-provenance.md))
 - Compare two annual filings year over year: section-level changes appear first, with expandable paragraph-level excerpts and citations for both years
 - Ask a question in plain language
-- Get an answer with a progressive text reveal (the complete response is fetched first, then revealed over ~550ms, not token-level streaming) and inline numbered citations `[1]` `[2]`
+- Watch answer tokens arrive as they are generated, with inline numbered citations `[1]` `[2]`; a Stop control cancels a pending generation
 - Click a citation to open a source drawer showing the exact excerpt, page number, and section, with a link that copies the excerpt to the clipboard so it can be found with ⌘F in the reader's own uploaded PDF
 - A confidence gauge on every answer signals how well-supported it is; a model refusal always shows Low with no citations, regardless of retrieval score, so a non-answer never gets dressed up as a confident one
 - A "Why this answer" disclosure on every response states, in plain language, how many passages were retrieved, from which sections, and how many were strong matches, generated deterministically from the same retrieval numbers behind the confidence gauge, not a separate model call
-- 2-3 follow-up question chips after each answer, grounded in the citation's own section and the document's other indexed sections, not generic canned prompts
+- Contextual follow-up chips tied to the question just answered, plus short follow-up questions resolved against the preceding turn before retrieval
 - Citation depth (brief/standard/detailed), controlled from a pill row next to the composer, actually changes how many source chunks are retrieved per question (k = 3/5/8)
 - Retrieval covers narrative sections (MD&A, Risk Factors, Legal Proceedings) and conservatively detected primary financial-statement table passages. Table passages retain a table title and inferred period columns so the answer and evidence panel can show where a value came from. The document info bar shows exactly which sections got indexed after upload, alongside the company name and fiscal year end extracted from each filing's cover page
 - A persistent evidence panel on desktop: click any citation anywhere in the conversation and it updates with the exact excerpt, page, and section, plus a link that opens the reader's own uploaded PDF straight to that page

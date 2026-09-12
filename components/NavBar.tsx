@@ -4,9 +4,10 @@ import { IconPlus, IconHelp } from './icons';
 export interface NavBarProps {
   onNewThread: () => void;
   onOpenHelp: () => void;
+  onExport?: () => void;
 }
 
-export function NavBar({ onNewThread, onOpenHelp }: NavBarProps) {
+export function NavBar({ onNewThread, onOpenHelp, onExport }: NavBarProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-base px-4 py-3 sm:px-6 lg:px-8">
       <span className="flex items-center gap-2 font-ui text-[16px] font-semibold text-primary">
@@ -21,6 +22,7 @@ export function NavBar({ onNewThread, onOpenHelp }: NavBarProps) {
         Testimonium
       </span>
       <div className="flex items-center gap-2">
+        {onExport && <button type="button" onClick={onExport} className="hidden min-h-[44px] rounded-full border border-border px-3 font-ui text-[13px] text-secondary hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:inline-flex">Export conversation</button>}
         <button
           type="button"
           onClick={onNewThread}

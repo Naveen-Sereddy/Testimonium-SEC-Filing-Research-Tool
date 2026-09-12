@@ -15,7 +15,7 @@ import { EvidencePanel } from '@/components/EvidencePanel';
 import { Onboarding } from '@/components/Onboarding';
 import { ComparisonPanel } from '@/components/ComparisonPanel';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import type { QueryResult, Citation } from '@/lib/rag';
+import type { QueryResult, Citation, UploadProgress } from '@/lib/rag';
 import type { SessionDocument } from '@/lib/store';
 import type { FilingComparison } from '@/lib/compare';
 
@@ -39,7 +39,7 @@ interface DocumentInfo {
 type DocState =
   | { status: 'idle' }
   | { status: 'dragover' }
-  | { status: 'uploading' }
+  | { status: 'uploading'; progress?: UploadProgress }
   | { status: 'error'; message: string }
   | ({ status: 'success' } & DocumentInfo)
   | ({ status: 'ready' } & DocumentInfo);
@@ -51,6 +51,7 @@ export default function Page() {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [lastFailedQuery, setLastFailedQuery] = useState<{ question: string; replaceId?: string } | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [streamingAnswer, setStreamingAnswer] = useState('');
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
@@ -62,6 +63,9 @@ export default function Page() {
   const [comparisonError, setComparisonError] = useState<string | null>(null);
   const { showOnboarding, complete: completeOnboarding, replay: replayOnboarding } = useOnboarding();
   const [uploadedFileUrls, setUploadedFileUrls] = useState<Record<string, string>>({});
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const queryAbortRef = useRef<AbortController | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   // Kept client-side only (never uploaded anywhere beyond the parse request)
   // so the Evidence panel can deep-link into the user's own file, real
@@ -127,32 +131,39 @@ export default function Page() {
 
   const handleFilesSelected = async (files: File[]) => {
     if (files.length === 0) return;
-    setDocState({ status: 'uploading' });
+    setDocState({ status: 'uploading', progress: { stage: 'Extracting text', completed: 0, total: files.length } });
     setUploadedFiles(files);
     setUploadedFile(files[0]);
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
 
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const body = await res.json();
-
-      if (!res.ok) {
-        setDocState({ status: 'error', message: body.error ?? 'Upload failed' });
-        return;
+      const res = await fetch('/api/upload', { method: 'POST', headers: { Accept: 'text/event-stream' }, body: formData });
+      if (!res.body) throw new Error('Upload progress was unavailable. Please try again.');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffered = '';
+      let completed = false;
+      while (true) {
+        const { value, done } = await reader.read();
+        buffered += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+        const events = buffered.split('\n\n');
+        buffered = events.pop() ?? '';
+        for (const event of events) {
+          const data = event.split('\n').find((line) => line.startsWith('data: '))?.slice(6);
+          if (!data) continue;
+          const message = JSON.parse(data) as { type: string; progress?: UploadProgress; result?: DocumentInfo; error?: string };
+          if (message.type === 'progress' && message.progress) setDocState({ status: 'uploading', progress: message.progress });
+          if (message.type === 'error') { setDocState({ status: 'error', message: message.error ?? 'Upload failed' }); return; }
+          if (message.type === 'complete' && message.result) {
+            const body = message.result;
+            setDocState({ status: 'success', fileName: files.map((file) => file.name).join(' · '), pageCount: body.pageCount, chunkCount: body.chunkCount, sessionId: body.sessionId, indexedSections: body.indexedSections ?? [], company: body.company ?? null, fiscalYearEnd: body.fiscalYearEnd ?? null, documents: body.documents ?? [] });
+            completed = true;
+          }
+        }
+        if (done) break;
       }
-
-      setDocState({
-        status: 'success',
-        fileName: files.map((file) => file.name).join(' · '),
-        pageCount: body.pageCount,
-        chunkCount: body.chunkCount,
-        sessionId: body.sessionId,
-        indexedSections: body.indexedSections ?? [],
-        company: body.company ?? null,
-        fiscalYearEnd: body.fiscalYearEnd ?? null,
-        documents: body.documents ?? [],
-      });
+      if (!completed) throw new Error('Upload ended before indexing completed. Please try again.');
     } catch {
       setDocState({ status: 'error', message: 'Network error — please try again.' });
     }
@@ -160,49 +171,81 @@ export default function Page() {
 
   const handleFileSelected = (file: File) => handleFilesSelected([file]);
 
+  const handleSample = async () => {
+    try {
+      const response = await fetch('/demo/sample-10k.pdf');
+      if (!response.ok) throw new Error('Sample filing could not be loaded.');
+      handleFileSelected(new File([await response.blob()], 'Testimonium sample 10-K.pdf', { type: 'application/pdf' }));
+    } catch (error) {
+      setDocState({ status: 'error', message: error instanceof Error ? error.message : 'Sample filing could not be loaded.' });
+    }
+  };
+
   const runQuery = async (question: string, replaceId?: string) => {
     if (docState.status !== 'ready') return;
     const { sessionId } = docState;
 
     setQueryError(null);
     setLastFailedQuery(null);
+    setStreamingAnswer('');
     if (replaceId) setRegeneratingId(replaceId);
     else setPendingQuestion(question);
 
     try {
+      const controller = new AbortController();
+      queryAbortRef.current = controller;
       const res = await fetch('/api/query', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, sessionId, citationDepth }),
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify({ question, sessionId, citationDepth, history: messages.slice(-3).map((message) => ({ question: message.question, answer: message.answer })) }),
+        signal: controller.signal,
       });
-      const body = await res.json();
-
       if (!res.ok) {
+        const body = await res.json() as { error?: string };
         setQueryError(body.error ?? 'Something went wrong');
         setLastFailedQuery({ question, replaceId });
         return;
       }
-
-      const message: Message = {
-        id: replaceId ?? crypto.randomUUID(),
-        question,
-        timestamp: Date.now(),
-        ...(body as QueryResult),
-      };
-      setMessages((prev) => (replaceId ? prev.map((m) => (m.id === replaceId ? message : m)) : [...prev, message]));
-    } catch {
+      if (!res.body) throw new Error('Answer stream was unavailable.');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffered = '';
+      let complete = false;
+      while (true) {
+        const { value, done } = await reader.read();
+        buffered += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+        const events = buffered.split('\n\n'); buffered = events.pop() ?? '';
+        for (const event of events) {
+          const data = event.split('\n').find((line) => line.startsWith('data: '))?.slice(6);
+          if (!data) continue;
+          const message = JSON.parse(data) as { type: string; token?: string; result?: QueryResult; error?: string };
+          if (message.type === 'token' && message.token) setStreamingAnswer((previous) => previous + message.token);
+          if (message.type === 'error') { setQueryError(message.error ?? 'Something went wrong'); setLastFailedQuery({ question, replaceId }); return; }
+          if (message.type === 'complete' && message.result) {
+            const result: Message = { id: replaceId ?? crypto.randomUUID(), question, timestamp: Date.now(), ...message.result };
+            setMessages((previous) => replaceId ? previous.map((entry) => entry.id === replaceId ? result : entry) : [...previous, result]);
+            complete = true;
+          }
+        }
+        if (done) break;
+      }
+      if (!complete) throw new Error('Answer stream ended before the citation check completed.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setQueryError('Answer generation stopped.');
+        return;
+      }
       setQueryError('Network error — please try again.');
       setLastFailedQuery({ question, replaceId });
     } finally {
       setRegeneratingId(null);
       setPendingQuestion(null);
+      setStreamingAnswer('');
+      queryAbortRef.current = null;
     }
   };
 
   const resetToIdle = () => {
-    if (messages.length > 0 && !window.confirm('Start a new analysis? This clears the current conversation and document.')) {
-      return;
-    }
     if (docState.status === 'ready' || docState.status === 'success') {
       const { sessionId } = docState;
       void fetch('/api/session', {
@@ -223,6 +266,22 @@ export default function Page() {
     setUploadedFiles([]);
     setComparison(null);
     setComparisonError(null);
+  };
+
+  const requestNewAnalysis = () => {
+    if (messages.length > 0) { setConfirmResetOpen(true); return; }
+    if (docState.status === 'ready' || docState.status === 'success') { resetToIdle(); return; }
+    uploadInputRef.current?.focus();
+  };
+
+  const exportConversation = () => {
+    if (messages.length === 0) return;
+    const transcript = messages.map((message) => {
+      const sources = message.citations.map((citation) => `- [${citation.id}] Page ${citation.page}, ${citation.section}: ${citation.excerpt}`).join('\n');
+      return `## Q: ${message.question}\n\n${message.answer}\n\n### Sources\n${sources || 'No cited sources.'}`;
+    }).join('\n\n---\n\n');
+    const url = URL.createObjectURL(new Blob([`# Testimonium conversation\n\n${transcript}\n`], { type: 'text/markdown' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'testimonium-conversation.md'; link.click(); URL.revokeObjectURL(url);
   };
 
   const runComparison = async () => {
@@ -253,7 +312,7 @@ export default function Page() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base">
-      <NavBar onNewThread={resetToIdle} onOpenHelp={() => setSettingsOpen(true)} />
+      <NavBar onNewThread={requestNewAnalysis} onOpenHelp={() => setSettingsOpen(true)} onExport={messages.length > 0 ? exportConversation : undefined} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -315,8 +374,11 @@ export default function Page() {
                               : 'idle'
                     }
                     errorMessage={docState.status === 'error' ? docState.message : undefined}
+                    progress={docState.status === 'uploading' ? docState.progress : undefined}
                     onFileSelected={handleFileSelected}
                     onFilesSelected={handleFilesSelected}
+                    onSample={handleSample}
+                    uploadInputRef={uploadInputRef}
                     onRetry={() => setDocState({ status: 'idle' })}
                   />
                 </div>
@@ -335,7 +397,7 @@ export default function Page() {
                 >
                   <UserMessageBubble question={m.question} />
                   {m.id === regeneratingId ? (
-                    <PendingResponseCard />
+                    <PendingResponseCard text={streamingAnswer} onCancel={() => queryAbortRef.current?.abort()} />
                   ) : (
                     <ResponseCard
                       answer={m.answer}
@@ -350,6 +412,7 @@ export default function Page() {
                       fileUrlForCitation={fileUrlForCitation}
                       indexedSections={docState.status === 'ready' ? docState.indexedSections : []}
                       onFollowUp={setInputValue}
+                      question={m.question}
                     />
                   )}
                 </div>
@@ -358,7 +421,7 @@ export default function Page() {
               {pendingQuestion && (
                 <div className="flex flex-col gap-3" style={{ animation: 'fadeInUp 260ms cubic-bezier(0.16,1,0.3,1)' }}>
                   <UserMessageBubble question={pendingQuestion} />
-                  <PendingResponseCard />
+                  <PendingResponseCard text={streamingAnswer} onCancel={() => queryAbortRef.current?.abort()} />
                 </div>
               )}
 
@@ -410,7 +473,16 @@ export default function Page() {
         }}
       />
 
-      {showOnboarding && <Onboarding onComplete={completeOnboarding} />}
+      {showOnboarding && <Onboarding onComplete={completeOnboarding} onUpload={() => uploadInputRef.current?.click()} />}
+      {confirmResetOpen && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 p-4" role="alertdialog" aria-modal="true" aria-labelledby="discard-analysis-title">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-raised p-6 shadow-xl">
+            <h2 id="discard-analysis-title" className="font-ui text-lg font-semibold text-primary">Discard this analysis?</h2>
+            <p className="mt-2 font-ui text-sm leading-5 text-secondary">This clears the uploaded filing and the current conversation.</p>
+            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setConfirmResetOpen(false)} className="min-h-[44px] rounded-lg px-3 font-ui text-sm text-secondary">Keep analysis</button><button type="button" onClick={() => { setConfirmResetOpen(false); resetToIdle(); }} className="min-h-[44px] rounded-lg bg-accent px-3 font-ui text-sm font-medium text-on">Discard</button></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

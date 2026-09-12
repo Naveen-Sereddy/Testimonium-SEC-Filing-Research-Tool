@@ -45,7 +45,14 @@ export function SourceDrawer({ citation, onClose, fileUrl }: SourceDrawerProps) 
           {citation.table.title} · columns: {citation.table.columns.join(', ')}{citation.table.unitScale ? ` · ${citation.table.unitScale}` : ''}
         </p>
       )}
-      <p className="mt-2 break-words font-serif text-[14px] leading-[22px] text-secondary">{citation.excerpt}</p>
+      {citation.kind === 'table' && citation.table?.rows?.length ? (
+        <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full border-collapse text-left font-mono text-[12px] leading-5 text-secondary">
+            <thead className="bg-hover text-tertiary"><tr><th className="px-2 py-1.5 font-medium">Line item</th>{citation.table.columns.map((column) => <th key={column} className="px-2 py-1.5 text-right font-medium">{column}</th>)}</tr></thead>
+            <tbody>{citation.table.rows.map((row) => <tr key={row.label} className="border-t border-border"><th className="px-2 py-1.5 font-medium">{row.label}</th>{row.values.map((value, index) => <td key={`${row.label}-${index}`} className="px-2 py-1.5 text-right">{isHighlighted(value, citation.highlights ?? []) ? <mark className="rounded bg-accent-muted px-0.5 text-primary">{value}</mark> : value}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      ) : <HighlightedExcerpt text={citation.excerpt} highlights={citation.highlights ?? []} />}
       <div className="mt-2 flex flex-wrap gap-2">
         <button
           type="button"
@@ -75,4 +82,15 @@ export function SourceDrawer({ citation, onClose, fileUrl }: SourceDrawerProps) 
       </div>
     </div>
   );
+}
+
+function HighlightedExcerpt({ text, highlights }: { text: string; highlights: string[] }) {
+  if (highlights.length === 0) return <p className="mt-2 break-words font-serif text-[14px] leading-[22px] text-secondary">{text}</p>;
+  const matcher = new RegExp(`(${highlights.map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  return <p className="mt-2 break-words font-serif text-[14px] leading-[22px] text-secondary">{text.split(matcher).map((part, index) => highlights.some((value) => value.toLowerCase() === part.toLowerCase()) ? <mark key={index} className="rounded bg-accent-muted px-0.5 text-primary">{part}</mark> : part)}</p>;
+}
+
+function isHighlighted(value: string, highlights: string[]) {
+  const normalized = value.replace(/\s/g, '').toLowerCase();
+  return highlights.some((highlight) => highlight.replace(/\s/g, '').toLowerCase() === normalized);
 }

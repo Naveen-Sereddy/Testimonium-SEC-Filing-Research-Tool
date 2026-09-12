@@ -23,6 +23,8 @@ import {
   explainRetrieval,
   InvalidFilingPairError,
   NoNarrativeSectionsError,
+  expandFollowUp,
+  isLowInformationQuery,
 } from '../../lib/rag';
 
 describe('explainRetrieval', () => {
@@ -51,6 +53,21 @@ describe('explainRetrieval', () => {
     const withNone = explainRetrieval(5, 0, ['Risk Factors'], true);
     expect(withSignal).toContain('none of them directly answered');
     expect(withNone).toContain('none closely related');
+  });
+});
+
+describe('question interpretation', () => {
+  it('expands a short follow-up with the preceding question for retrieval', () => {
+    expect(expandFollowUp('And in 2022?', [{ question: 'What was total revenue in 2023?', answer: '$891.3M.' }])).toMatchObject({
+      retrievalQuery: 'What was total revenue in 2023? Follow-up: And in 2022?',
+      reference: expect.stringContaining('What was total revenue in 2023?'),
+    });
+  });
+
+  it('keeps standalone questions unchanged and identifies keyboard mashing', () => {
+    expect(expandFollowUp('What were total revenues in 2022?', [])).toEqual({ retrievalQuery: 'What were total revenues in 2022?' });
+    expect(isLowInformationQuery('asdf qwerty zzz')).toBe(true);
+    expect(isLowInformationQuery('What were total revenues in 2024?')).toBe(false);
   });
 });
 
@@ -213,6 +230,28 @@ describe('answerQuestion', () => {
 
     const detailed = await answerQuestion(SESSION, 'What is our risk?', 6);
     expect(detailed.citations).toHaveLength(6);
+  });
+
+  it('keeps a scaled financial answer only when its table source supports the displayed amount', async () => {
+    const { addChunks } = await import('../../lib/store');
+    await addChunks(SESSION, [{
+      id: 'income-statement',
+      text: 'Consolidated Statements of Operations (In thousands)\nTotal revenues $ 891,340 $ 701,440',
+      page: 48,
+      section: 'Financial Statements',
+      kind: 'table',
+      table: { title: 'Consolidated Statements of Operations', columns: ['2023', '2022'], unitScale: 'In thousands', rows: [{ label: 'Total revenues', values: ['$891,340', '$701,440'] }] },
+      embedding: [1, 0],
+    }]);
+    vi.mocked(embedTexts).mockResolvedValue([[1, 0]]);
+    vi.mocked(askModel).mockResolvedValue('Total revenue was **$891.3M** in 2023. [1]');
+
+    const result = await answerQuestion(SESSION, 'What was total revenue in 2023?');
+
+    expect(result.answer).toContain('$891.3M');
+    expect(result.citations).toHaveLength(1);
+    expect(result.citations[0].excerpt).toContain('891,340');
+    expect(result.citations[0].highlights).toEqual(['$ 891,340']);
   });
 
   it('forces Low confidence and no citations when the model refuses, even with strong retrieval scores', async () => {

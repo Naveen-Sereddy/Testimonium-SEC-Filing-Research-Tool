@@ -22,21 +22,22 @@ export interface ResponseCardProps {
   fileUrlForCitation?: (citation: Citation) => string | null;
   indexedSections?: string[];
   onFollowUp?: (question: string) => void;
+  question: string;
 }
 
 // Each follow-up is answered as a brand-new, standalone query (the RAG
 // pipeline has no conversation history, see lib/chat.ts buildPrompt), so
 // every suggestion must be self-contained — no "this"/"the answer above".
 // Grounded in the document's own indexed sections, never generic canned text.
-function followUpSuggestions(citations: Citation[], indexedSections: string[]): string[] {
+function followUpSuggestions(question: string, citations: Citation[], indexedSections: string[]): string[] {
   if (citations.length === 0) return [];
+  const topic = question.replace(/^(?:what|how|why|when|where|which|can|did|does|is|are)\s+/i, '').replace(/[?!.]+$/, '').trim();
   const answerSection = citations[0].section;
-  const suggestions = [`Summarize the ${answerSection} section`];
-  const otherSections = indexedSections.filter((s) => s !== answerSection);
-  for (const section of otherSections.slice(0, 2)) {
-    suggestions.push(`What are the key points in the ${section} section?`);
-  }
-  return suggestions;
+  return [
+    `How did ${topic} change in the prior year?`,
+    `What factors in ${answerSection} explain ${topic}?`,
+    ...indexedSections.filter((section) => section !== answerSection).slice(0, 1).map((section) => `What does ${section} say about ${topic}?`),
+  ];
 }
 
 export function ResponseCard({
@@ -52,6 +53,7 @@ export function ResponseCard({
   fileUrlForCitation,
   indexedSections = [],
   onFollowUp,
+  question,
 }: ResponseCardProps) {
   const { displayedText, isStreaming } = useStreamingText(answer);
   const [activeCitationId, setActiveCitationId] = useState<number | null>(null);
@@ -69,7 +71,7 @@ export function ResponseCard({
 
   const citationById = new Map(citations.map((c) => [c.id, c]));
   const activeCitation = activeCitationId ? citationById.get(activeCitationId) : undefined;
-  const followUps = followUpSuggestions(citations, indexedSections);
+  const followUps = followUpSuggestions(question, citations, indexedSections);
 
   const flashCopied = (which: 'plain' | 'withCitations') => {
     setCopied(which);
@@ -217,14 +219,14 @@ export function ResponseCard({
   );
 }
 
-export function PendingResponseCard() {
+export function PendingResponseCard({ onCancel, text = '' }: { onCancel?: () => void; text?: string }) {
   return (
     <div className="w-full rounded-2xl border border-border bg-raised p-5 shadow-[0_1px_2px_rgba(0,0,0,0.18)] sm:p-6" aria-live="polite" aria-label="Generating answer">
       <div className="flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
         <span className="font-ui text-[12px] font-medium uppercase tracking-[0.04em] text-tertiary">Thinking</span>
       </div>
-      <div className="mt-4 flex gap-1.5" aria-hidden="true">
+      {text ? <p className="mt-4 whitespace-pre-wrap font-serif text-[16px] leading-[27px] text-primary">{text}</p> : <div className="mt-4 flex gap-1.5" aria-hidden="true">
         <span className="h-1.5 w-1.5 rounded-full bg-tertiary" style={{ animation: 'dotPulse 1.1s ease-in-out infinite' }} />
         <span
           className="h-1.5 w-1.5 rounded-full bg-tertiary"
@@ -234,7 +236,8 @@ export function PendingResponseCard() {
           className="h-1.5 w-1.5 rounded-full bg-tertiary"
           style={{ animation: 'dotPulse 1.1s ease-in-out infinite', animationDelay: '0.3s' }}
         />
-      </div>
+      </div>}
+      {onCancel && <button type="button" onClick={onCancel} className="mt-4 min-h-[44px] rounded-lg border border-border px-3 font-ui text-[13px] font-medium text-secondary hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Stop</button>}
     </div>
   );
 }

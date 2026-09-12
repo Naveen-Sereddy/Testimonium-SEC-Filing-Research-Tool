@@ -28,7 +28,7 @@ export function SettingsPanel({ isOpen, onClose, onReplayOnboarding }: SettingsP
     <div className="fixed inset-0 z-20" role="dialog" aria-modal="true" aria-label="How this works">
       <button
         type="button"
-        aria-label="Close"
+        aria-label="Close dialog"
         onClick={onClose}
         className="absolute inset-0 bg-black/50"
         style={{ animation: 'fadeInUp 180ms ease-out' }}

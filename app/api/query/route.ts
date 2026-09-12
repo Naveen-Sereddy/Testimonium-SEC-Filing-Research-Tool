@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { answerQuestion } from '@/lib/rag';
+import { answerQuestion, type ConversationTurn } from '@/lib/rag';
 import { checkQueryRateLimit } from '@/lib/ratelimit';
 import { isValidSessionId } from '@/lib/session';
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many questions, please wait a minute and try again' }, { status: 429 });
   }
 
-  let body: { question?: unknown; sessionId?: unknown; citationDepth?: unknown } | null;
+  let body: { question?: unknown; sessionId?: unknown; citationDepth?: unknown; history?: unknown } | null;
   try {
     body = await req.json();
   } catch {
@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
   const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
   const citationDepth = body?.citationDepth;
   const k = isCitationDepth(citationDepth) ? CITATION_DEPTH_TO_K[citationDepth] : CITATION_DEPTH_TO_K.standard;
+  const history: ConversationTurn[] = Array.isArray(body?.history)
+    ? body.history.slice(-3).flatMap((turn) => typeof turn === 'object' && turn !== null && typeof (turn as ConversationTurn).question === 'string'
+      ? [{ question: (turn as ConversationTurn).question, answer: typeof (turn as ConversationTurn).answer === 'string' ? (turn as ConversationTurn).answer : undefined }]
+      : [])
+    : [];
 
   if (!question) {
     return NextResponse.json({ error: 'Question is required' }, { status: 400 });
@@ -35,7 +40,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await answerQuestion(sessionId, question, k);
+    if (req.headers.get('accept')?.includes('text/event-stream')) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (payload: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          try {
+            const result = await answerQuestion(sessionId, question, k, history, (token) => send({ type: 'token', token }));
+            send({ type: 'complete', result });
+          } catch (error) {
+            console.error('Query processing failed:', error);
+            send({ type: 'error', error: 'Failed to process question' });
+          } finally { controller.close(); }
+        },
+      });
+      return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' } });
+    }
+    const result = await answerQuestion(sessionId, question, k, history);
     return NextResponse.json(result);
   } catch (err) {
     console.error('Query processing failed:', err);
