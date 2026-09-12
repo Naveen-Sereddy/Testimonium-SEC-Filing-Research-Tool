@@ -654,7 +654,14 @@ export default function Page() {
         }}
       />
 
-      {showOnboarding && <Onboarding onComplete={completeOnboarding} onUpload={() => uploadInputRef.current?.click()} />}
+      {showOnboarding && <Onboarding onComplete={completeOnboarding} onUpload={() => {
+        const input = uploadInputRef.current;
+        if (!input) return false;
+        // Selecting the same filing after an error should still emit change.
+        input.value = '';
+        input.click();
+        return true;
+      }} />}
       {confirmResetOpen && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 p-4" role="alertdialog" aria-modal="true" aria-labelledby="discard-analysis-title">
           <div className="w-full max-w-sm rounded-2xl border border-border bg-raised p-6 shadow-xl">

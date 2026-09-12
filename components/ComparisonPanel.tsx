@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import type { CitationSide, FilingComparison, FilingChange } from '@/lib/compare';
-import { IconCheck, IconCopy, IconFile } from './icons';
+import { IconCheck, IconCopy } from './icons';
 import { copyText } from '@/lib/clipboard';
-import { citationPageUrl, openCitationInNewTab } from '@/lib/citationLink';
+import { CitationPageLink } from './CitationPageLink';
 
 function changeLabel(kind: FilingChange['kind']): string {
   return kind === 'modified' ? 'Modified' : kind === 'added' ? 'Added' : 'Removed';
@@ -110,18 +110,7 @@ function ComparisonEvidence({ side, tone, sourceUrl }: { side: CitationSide; ton
           {copied ? <IconCheck className="h-3.5 w-3.5" /> : <IconCopy className="h-3.5 w-3.5" />}
           {copied ? 'Copied' : 'Copy excerpt'}
         </button>
-        {sourceUrl && (
-          <a
-            href={citationPageUrl(sourceUrl, side.page)}
-            target="_blank"
-            rel="noopener"
-            onClick={(event) => openCitationInNewTab(event, citationPageUrl(sourceUrl, side.page))}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-border px-3 font-ui text-[12px] text-accent hover:border-accent hover:text-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <IconFile className="h-3.5 w-3.5" />
-            Jump to page {side.page}
-          </a>
-        )}
+        <CitationPageLink sourceUrl={sourceUrl} page={side.page} />
       </div>
     </div>
   );

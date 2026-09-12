@@ -9,7 +9,7 @@ import type { Confidence } from '@/lib/rag';
 
 export interface OnboardingProps {
   onComplete: () => void;
-  onUpload: () => void;
+  onUpload: () => boolean;
 }
 
 interface Screen {
@@ -125,6 +125,7 @@ const SCREENS: Screen[] = [
 
 export function Onboarding({ onComplete, onUpload }: OnboardingProps) {
   const [index, setIndex] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const containerRef = useFocusTrap<HTMLDivElement>(true);
   const liveRegionRef = useRef<HTMLHeadingElement>(null);
 
@@ -135,8 +136,13 @@ export function Onboarding({ onComplete, onUpload }: OnboardingProps) {
     if (isLast) {
       // Keep this inside the button's user activation. Browsers are allowed
       // to block a file-picker click once it crosses an async boundary.
-      onUpload();
-      onComplete();
+      if (!onUpload()) {
+        setUploadError('The file picker is not ready yet. Please try again.');
+        return;
+      }
+      // The click above remains synchronous and user-initiated. Closing on
+      // the next frame avoids unmounting the input during its picker handoff.
+      window.requestAnimationFrame(onComplete);
       return;
     }
     setIndex((i) => Math.min(i + 1, SCREENS.length - 1));
@@ -255,6 +261,7 @@ export function Onboarding({ onComplete, onUpload }: OnboardingProps) {
               )}
             </button>
           </div>
+          {uploadError && <p role="alert" className="font-ui text-[12px] text-error">{uploadError}</p>}
         </div>
       </div>
     </div>

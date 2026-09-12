@@ -83,7 +83,7 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
         type="file"
         accept="application/pdf"
         multiple
-        className="hidden"
+        className="sr-only"
         aria-describedby="upload-help"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []).filter((file) => file.type === 'application/pdf').slice(0, 2);
