@@ -156,15 +156,26 @@ export function UploadZone({ status, errorMessage, onFileSelected, onFilesSelect
           <p id="upload-help" className="font-ui text-[12px] text-tertiary">
             Compare annual filings year over year · 50MB combined upload limit
           </p>
-          {onSample && (
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onSample(); }}
-              className="min-h-[44px] rounded-full border border-accent px-3.5 font-ui text-[13px] font-medium text-accent transition-colors hover:bg-accent-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          <div className="flex flex-wrap justify-center gap-2">
+            {onSample && (
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); onSample(); }}
+                className="min-h-[44px] rounded-full border border-accent px-3.5 font-ui text-[13px] font-medium text-accent transition-colors hover:bg-accent-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                Try a sample 10-K
+              </button>
+            )}
+            <a
+              href="/demo/testimonium-demo-90s.mp4"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="inline-flex min-h-[44px] items-center rounded-full border border-border px-3.5 font-ui text-[13px] font-medium text-secondary transition-colors hover:border-accent hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              Try a sample 10-K
-            </button>
-          )}
+              Watch 90-sec demo
+            </a>
+          </div>
           <div className="mt-2 flex flex-wrap justify-center gap-2" aria-label="Example questions">
             {LANDING_SUGGESTIONS.map((question) => (
               <button key={question} type="button" onClick={(event) => { event.stopPropagation(); onExampleQuestion?.(question); }} className="min-h-[40px] rounded-full border border-border bg-overlay px-3 font-ui text-[12px] text-secondary transition-colors hover:border-border-strong hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
