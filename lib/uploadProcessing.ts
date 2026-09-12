@@ -26,9 +26,21 @@ export async function processUploadedFiles(files: UploadedFileInput[], onProgres
   for (const [index, file] of files.entries()) {
     onProgress?.({ stage: 'Extracting text', completed: index, total: files.length });
     if (file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw new UploadError(`${file.fileName} is not a valid PDF file`, 422);
-    const pages = await extractPages(file.buffer);
+    let pages;
+    try {
+      pages = await extractPages(file.buffer);
+    } catch (error) {
+      console.error(`PDF text extraction failed for ${file.fileName}:`, error);
+      throw new UploadError(`Could not read text from ${file.fileName}. The PDF may be encrypted, damaged, or image-only.`, 422);
+    }
     if (!isLikelyAnnualReport(pages)) throw new UploadError(`${file.fileName} does not appear to be a Form 10-K annual report`, 422);
     inputs.push({ buffer: file.buffer, fileName: file.fileName, pages });
   }
-  return processUploads(inputs, { onProgress });
+  try {
+    return await processUploads(inputs, { onProgress });
+  } catch (error) {
+    if (error instanceof UploadError) throw error;
+    console.error('Document indexing failed:', error);
+    throw new UploadError(`Text was read from ${files.map((file) => file.fileName).join(' and ')}, but indexing could not finish. Please retry the upload.`, 500);
+  }
 }

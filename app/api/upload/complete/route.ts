@@ -6,6 +6,7 @@ import { responseForUploadError } from '../route';
 import type { UploadProgress } from '@/lib/rag';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const { limited } = await checkUploadRateLimit(req);
@@ -42,5 +43,5 @@ export async function POST(req: NextRequest) {
       }
     },
   });
-  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' } });
+  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no', 'Content-Encoding': 'none' } });
 }

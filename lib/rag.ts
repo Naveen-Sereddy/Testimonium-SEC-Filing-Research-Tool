@@ -7,6 +7,7 @@ import { addChunks, getAllChunks, getSessionDocuments, setSessionDocuments, type
 import { cosineSimilarity } from './similarity';
 import { extractFilingMetadata } from './metadata';
 import { extractFinancialTableChunks } from './tables';
+import { tableFromExcerpt } from './excerptTables';
 import { confidenceLabel, DEFAULT_CONFIDENCE_PROFILE, type Confidence } from './confidence';
 import { citedIds } from './parseCitations';
 export type { Confidence } from './confidence';
@@ -301,13 +302,15 @@ function excerptForClaim(citation: Citation, answer: string): Citation {
   if (!hasNumericClaim(answer)) {
     return { id: citation.id, chunkId: citation.chunkId, page: citation.page, section: citation.section, excerpt: citation.excerpt.slice(0, 200).replace(/\s+\S*$/, '') };
   }
-  const highlights = supportingClaims(citation.excerpt, answer, citation.table?.unitScale);
-  if (highlights.length === 0) return { ...citation, highlights: [] };
-  const first = citation.excerpt.toLowerCase().indexOf(highlights[0].toLowerCase());
+  const inferredTable = citation.table ?? tableFromExcerpt(citation.excerpt) ?? undefined;
+  const enrichedCitation = inferredTable ? { ...citation, kind: 'table' as const, table: inferredTable } : citation;
+  const highlights = supportingClaims(enrichedCitation.excerpt, answer, enrichedCitation.table?.unitScale);
+  if (highlights.length === 0) return { ...enrichedCitation, highlights: [] };
+  const first = enrichedCitation.excerpt.toLowerCase().indexOf(highlights[0].toLowerCase());
   const start = Math.max(0, first - 180);
-  const end = Math.min(citation.excerpt.length, first + highlights[0].length + 420);
-  const excerpt = `${start > 0 ? '…' : ''}${citation.excerpt.slice(start, end).trim()}${end < citation.excerpt.length ? '…' : ''}`;
-  return { ...citation, excerpt, highlights };
+  const end = Math.min(enrichedCitation.excerpt.length, first + highlights[0].length + 420);
+  const excerpt = `${start > 0 ? '…' : ''}${enrichedCitation.excerpt.slice(start, end).trim()}${end < enrichedCitation.excerpt.length ? '…' : ''}`;
+  return { ...enrichedCitation, excerpt, highlights };
 }
 
 function excerptSupportsNumericClaim(source: string, answer: string, unitScale?: string): boolean {

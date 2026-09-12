@@ -3,6 +3,10 @@ import { answerQuestion, type ConversationTurn } from '@/lib/rag';
 import { checkQueryRateLimit } from '@/lib/ratelimit';
 import { isValidSessionId } from '@/lib/session';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
 const CITATION_DEPTH_TO_K = { brief: 3, standard: 5, detailed: 8 } as const;
 type CitationDepth = keyof typeof CITATION_DEPTH_TO_K;
 
@@ -45,6 +49,9 @@ export async function POST(req: NextRequest) {
       const stream = new ReadableStream({
         async start(controller) {
           const send = (payload: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          // Flush an SSE frame immediately. This prevents proxy buffering from
+          // hiding token events until the model has completed its answer.
+          controller.enqueue(encoder.encode(': connected\n\n'));
           try {
             const result = await answerQuestion(sessionId, question, k, history, (token) => send({ type: 'token', token }));
             send({ type: 'complete', result });
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
           } finally { controller.close(); }
         },
       });
-      return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' } });
+      return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no', 'Content-Encoding': 'none' } });
     }
     const result = await answerQuestion(sessionId, question, k, history);
     return NextResponse.json(result);

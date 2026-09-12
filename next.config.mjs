@@ -6,11 +6,8 @@ const nextConfig = {
   // file tracer can't see that statically, so it gets dropped from the deployed
   // function unless force-included here.
   outputFileTracingIncludes: {
-    '/api/upload': [
-      './node_modules/dommatrix/**/*',
-      './node_modules/pdf-parse/**/*',
-      './node_modules/pdfjs-dist/**/*',
-    ],
+    '/api/upload': ['./node_modules/dommatrix/**/*', './node_modules/pdf-parse/**/*', './node_modules/pdfjs-dist/**/*'],
+    '/api/upload/complete': ['./node_modules/dommatrix/**/*', './node_modules/pdf-parse/**/*', './node_modules/pdfjs-dist/**/*'],
   },
   turbopack: {
     root: process.cwd(),

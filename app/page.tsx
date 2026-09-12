@@ -89,7 +89,7 @@ export default function Page() {
   // server under sessionId; File objects deliberately are not persisted.
   useEffect(() => {
     try {
-      const stored = window.sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
+      const stored = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
       if (!stored) return;
       const workspace = JSON.parse(stored) as PersistedWorkspace;
       if (
@@ -101,7 +101,7 @@ export default function Page() {
         setMessages(workspace.messages);
       }
     } catch {
-      window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+      window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
     } finally {
       restoredWorkspaceRef.current = true;
     }
@@ -120,7 +120,7 @@ export default function Page() {
       documents: docState.documents,
     };
     const workspace: PersistedWorkspace = { version: 1, document, messages };
-    window.sessionStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
   }, [docState, messages]);
 
   // Kept client-side only (never uploaded anywhere beyond the parse request)
@@ -192,7 +192,7 @@ export default function Page() {
       setDocState({ status: 'error', message: `The selected files total ${(totalSize / 1024 / 1024).toFixed(1)}MB, which exceeds the 50MB combined upload limit.` });
       return;
     }
-    window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
     setDocState({ status: 'uploading', progress: { stage: 'Extracting text', completed: 0, total: files.length } });
     setUploadedFiles(files);
     setUploadedFile(files[0]);
@@ -384,7 +384,7 @@ export default function Page() {
     setComparison(null);
     setComparisonError(null);
     queuedExampleQuestionRef.current = null;
-    window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
   };
 
   const requestNewAnalysis = () => {
