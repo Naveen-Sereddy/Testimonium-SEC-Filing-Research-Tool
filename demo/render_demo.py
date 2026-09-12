@@ -116,7 +116,7 @@ def main():
             output.write(f"file '{path}'\n")
             output.write(f'duration {duration}\n')
         output.write(f"file '{entries[-1][0]}'\n")
-    poster = make_frame('03-conversation-answer.png', 'An AI that\nrefuses to lie to you', 'Evidence-grade answers from SEC filings.\nEvery number can be checked.', 0)
+    poster = make_frame('03-conversation-answer.png', 'Most AI chatbots guess.\nTestimonium refuses to.', 'Evidence-grade answers from SEC filings.\nEvery number can be checked.', 0)
     poster.save(ROOT / 'poster.jpg', quality=94, subsampling=0)
 
 if __name__ == '__main__':
