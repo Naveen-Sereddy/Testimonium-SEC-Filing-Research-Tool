@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { CitationSide, FilingComparison, FilingChange } from '@/lib/compare';
 import { IconCheck, IconCopy, IconFile } from './icons';
 import { copyText } from '@/lib/clipboard';
+import { citationPageUrl, openCitationInNewTab } from '@/lib/citationLink';
 
 function changeLabel(kind: FilingChange['kind']): string {
   return kind === 'modified' ? 'Modified' : kind === 'added' ? 'Added' : 'Removed';
@@ -111,9 +112,10 @@ function ComparisonEvidence({ side, tone, sourceUrl }: { side: CitationSide; ton
         </button>
         {sourceUrl && (
           <a
-            href={`${sourceUrl}#page=${side.page}`}
+            href={citationPageUrl(sourceUrl, side.page)}
             target="_blank"
             rel="noopener"
+            onClick={(event) => openCitationInNewTab(event, citationPageUrl(sourceUrl, side.page))}
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-border px-3 font-ui text-[12px] text-accent hover:border-accent hover:text-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <IconFile className="h-3.5 w-3.5" />

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Citation } from '@/lib/rag';
 import { IconCheck, IconCopy, IconFile } from './icons';
 import { copyText } from '@/lib/clipboard';
+import { citationPageUrl, openCitationInNewTab } from '@/lib/citationLink';
 
 export interface EvidencePanelProps {
   citation: Citation | null;
@@ -63,9 +64,10 @@ export function EvidencePanel({ citation, fileName, fileUrl, fileUrlForCitation 
             </button>
           {sourceUrl && (
             <a
-              href={`${sourceUrl}#page=${citation.page}`}
+              href={citationPageUrl(sourceUrl, citation.page)}
               target="_blank"
               rel="noopener"
+              onClick={(event) => openCitationInNewTab(event, citationPageUrl(sourceUrl, citation.page))}
               className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-border px-3 font-ui text-[12px] font-medium text-accent transition-colors hover:border-accent hover:text-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <IconFile className="h-3.5 w-3.5" />

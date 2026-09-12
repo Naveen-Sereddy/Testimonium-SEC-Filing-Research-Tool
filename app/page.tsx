@@ -15,6 +15,8 @@ import { EvidencePanel } from '@/components/EvidencePanel';
 import { Onboarding } from '@/components/Onboarding';
 import { ComparisonPanel } from '@/components/ComparisonPanel';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { loadSessionFiles, removeSessionFiles, saveSessionFiles } from '@/lib/clientFileStore';
+import { streamWords } from '@/lib/streamWords';
 import type { QueryResult, Citation, UploadProgress } from '@/lib/rag';
 import type { SessionDocument } from '@/lib/store';
 import type { FilingComparison } from '@/lib/compare';
@@ -122,6 +124,30 @@ export default function Page() {
     const workspace: PersistedWorkspace = { version: 1, document, messages };
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
   }, [docState, messages]);
+
+  // Object URLs are invalid after a full navigation. Keep the user-selected
+  // PDF in this browser's IndexedDB, then rebuild fresh URLs when the saved
+  // workspace is restored. The PDF never leaves the browser through this
+  // cache; it only makes a citation's source link durable.
+  useEffect(() => {
+    if (docState.status !== 'ready' || uploadedFiles.length > 0 || uploadedFile) return;
+    let cancelled = false;
+    void loadSessionFiles(docState.sessionId)
+      .then((files) => {
+        if (cancelled || files.length === 0) return;
+        setUploadedFiles(files);
+        setUploadedFile(files[0]);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [docState, uploadedFile, uploadedFiles]);
+
+  useEffect(() => {
+    if (docState.status !== 'ready') return;
+    const files = uploadedFiles.length > 0 ? uploadedFiles : uploadedFile ? [uploadedFile] : [];
+    if (files.length === 0) return;
+    void saveSessionFiles(docState.sessionId, files).catch(() => undefined);
+  }, [docState, uploadedFile, uploadedFiles]);
 
   // Kept client-side only (never uploaded anywhere beyond the parse request)
   // so the Evidence panel can deep-link into the user's own file, real
@@ -256,6 +282,10 @@ export default function Page() {
           if (message.type === 'error') { setDocState({ status: 'error', message: message.error ?? 'Upload failed' }); return; }
           if (message.type === 'complete' && message.result) {
             const body = message.result;
+            // Do this before declaring the filing ready. Any citation opened
+            // from the ensuing conversation can therefore be reconstructed
+            // after the PDF viewer round trip or a full reload.
+            await saveSessionFiles(body.sessionId, files).catch(() => undefined);
             setDocState({ status: 'success', fileName: files.map((file) => file.name).join(' · '), pageCount: body.pageCount, chunkCount: body.chunkCount, sessionId: body.sessionId, indexedSections: body.indexedSections ?? [], company: body.company ?? null, fiscalYearEnd: body.fiscalYearEnd ?? null, documents: body.documents ?? [] });
             completed = true;
           }
@@ -310,6 +340,16 @@ export default function Page() {
       const decoder = new TextDecoder();
       let buffered = '';
       let complete = false;
+      let receivedAnswerTokens = false;
+      const revealToken = async (token: string) => {
+        for (const word of streamWords(token)) {
+          setStreamingAnswer((previous) => previous + word);
+          // A response can arrive as one buffered network read. Yield between
+          // words so React paints each increment instead of batching the
+          // entire answer and replacing the typing indicator in one frame.
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 24));
+        }
+      };
       while (true) {
         const { value, done } = await reader.read();
         buffered += decoder.decode(value ?? new Uint8Array(), { stream: !done });
@@ -318,9 +358,16 @@ export default function Page() {
           const data = event.split('\n').find((line) => line.startsWith('data: '))?.slice(6);
           if (!data) continue;
           const message = JSON.parse(data) as { type: string; token?: string; result?: QueryResult; error?: string };
-          if (message.type === 'token' && message.token) setStreamingAnswer((previous) => previous + message.token);
+          if (message.type === 'token' && message.token) {
+            receivedAnswerTokens = true;
+            await revealToken(message.token);
+          }
           if (message.type === 'error') { setQueryError(message.error ?? 'Something went wrong'); setLastFailedQuery({ question, replaceId }); return; }
           if (message.type === 'complete' && message.result) {
+            // Refusals and validation responses intentionally skip model
+            // tokens. Reveal those answers too, rather than making them jump
+            // straight from the writing indicator into a completed card.
+            if (!receivedAnswerTokens) await revealToken(message.result.answer);
             const result: Message = { id: replaceId ?? crypto.randomUUID(), question, timestamp: Date.now(), ...message.result };
             setMessages((previous) => replaceId ? previous.map((entry) => entry.id === replaceId ? result : entry) : [...previous, result]);
             complete = true;
@@ -370,6 +417,7 @@ export default function Page() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
       }).catch((error) => console.error('Session cleanup failed:', error));
+      void removeSessionFiles(sessionId).catch(() => undefined);
     }
     setDocState({ status: 'idle' });
     setMessages([]);
